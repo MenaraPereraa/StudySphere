@@ -1,0 +1,42 @@
+[versions]
+activityVersion = "1.8.2"
+agp = "8.12.3"
+appcompatVersion = "1.6.1"
+circleimageview = "3.1.0"
+constraintlayoutVersion = "2.1.4"
+credentialsPlayServicesAuthVersion = "1.2.2"
+credentialsVersion = "1.2.2"
+googleidVersion = "1.1.1"
+junit = "4.13.2"
+junitVersion = "1.3.0"
+espressoCore = "3.7.0"
+appcompat = "1.7.1"
+material = "1.13.0"
+activity = "1.12.3"
+constraintlayout = "2.2.1"
+places = "5.1.1"
+threetenabp = "1.4.9"
+lottie = "6.0.0"
+
+[libraries]
+activity-v182 = { module = "androidx.activity:activity", version.ref = "activityVersion" }
+androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "credentialsVersion" }
+androidx-credentials-credentials-play-services-auth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentialsPlayServicesAuthVersion" }
+appcompat-v161 = { module = "androidx.appcompat:appcompat", version.ref = "appcompatVersion" }
+circleimageview = { module = "de.hdodenhof:circleimageview", version.ref = "circleimageview" }
+constraintlayout-v214 = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraintlayoutVersion" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
+google-googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleidVersion" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
+constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+places = { group = "com.google.android.libraries.places", name = "places", version.ref = "places" }
+threetenabp = { module = "com.jakewharton.threetenabp:threetenabp", version.ref = "threetenabp" }
+lottie = { module = "com.airbnb.android:lottie", version.ref = "lottie" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }

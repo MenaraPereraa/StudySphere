@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Main Navigation Items -->
+    <group android:id="@+id/side_nav_group_main">
+
+        <item
+            android:id="@+id/side_nav_profile"
+            android:icon="@drawable/person_24px"
+            android:iconTint="@color/bottom_nav_color"
+            android:title="Profile"
+            android:visible="true" />
+
+        <item
+            android:id="@+id/side_nav_category"
+            android:icon="@drawable/category_24px"
+            android:title="Category"
+            android:visible="true"/>
+
+        <item
+            android:id="@+id/side_nav_wishlist"
+            android:icon="@drawable/favorite_24px"
+            android:visible="true"
+            android:title="Wishlist"/>
+
+        <item
+            android:id="@+id/side_nav_payment_history"
+            android:icon="@drawable/stacked_bar_chart_24px"
+            android:title="Payment History"
+            android:visible="true"/>
+
+        <item
+            android:id="@+id/side_nav_switch_seller"
+            android:icon="@drawable/swap_horiz_24px"
+            android:title="Switch to Seller Account"
+            android:visible="true"/>
+
+    </group>
+
+    <group android:id="@+id/side_nav_group_auth">
+
+        <item
+            android:id="@+id/side_nav_login"
+            android:icon="@drawable/login_24px"
+            android:title="@string/side_nav_login_title" />
+
+        <item
+            android:id="@+id/side_nav_logout"
+            android:icon="@drawable/logout_24px"
+            android:title="@string/side_nav_logout_title"
+            android:visible="false" />
+
+    </group>
+
+</menu>

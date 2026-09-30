@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "936025376859",
+    "project_id": "studysphere-87b0b",
+    "storage_bucket": "studysphere-87b0b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:936025376859:android:7b163b54e5276e1176d77e",
+        "android_client_info": {
+          "package_name": "lk.menara.studysphere"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "936025376859-ktaq78j38ljc5b4qm8fhpc7q4v8h6lbo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "lk.menara.studysphere",
+            "certificate_hash": "41e0481c3afd2252b585eea8c2f099f406dbfbda"
+          }
+        },
+        {
+          "client_id": "936025376859-1r1rsv50kgq8q47gjr85nmm1l43f1fci.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBpvF8MRNZD5IExZW-oUs15V1SeQKyU2nE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "936025376859-1r1rsv50kgq8q47gjr85nmm1l43f1fci.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,555 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/md_theme_background"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Header -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginBottom="16dp"
+            android:gravity="center_vertical">
+
+            <ImageView
+                android:id="@+id/back_button"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:src="@drawable/arrow_back_24px"
+                android:tint="@color/md_theme_onBackground"
+                android:contentDescription="Back"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:text="Order Details"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/md_theme_onBackground"/>
+        </RelativeLayout>
+
+        <!-- Receipt Card (PDF-style) -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            app:strokeWidth="0dp"
+            android:backgroundTint="@android:color/white">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@android:color/white"
+                android:padding="20dp">
+
+                <!-- Receipt Header -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:layout_marginBottom="20dp"
+                    android:paddingBottom="16dp"
+                    android:paddingTop="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📦 STUDYSPHERE"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/md_theme_primary"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Order Receipt &amp; Invoice"
+                        android:textSize="12sp"
+                        android:textColor="@color/md_theme_onSurfaceVariant"
+                        android:layout_marginBottom="16dp" />
+
+                </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="2dp"
+                    android:background="@color/md_theme_primary"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- Order Number and Date -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="12dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="ORDER NO."
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/md_theme_onSurfaceVariant" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="001245"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/md_theme_onBackground"
+                            android:layout_marginTop="4dp"
+                            android:id="@+id/tv_order_no_value" />
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="DATE"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/md_theme_onSurfaceVariant" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="March 10, 2026"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/md_theme_onBackground"
+                            android:layout_marginTop="4dp"
+                            android:id="@+id/tv_date_value" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/md_theme_outlineVariant"
+                    android:layout_marginVertical="12dp" />
+
+                <!-- Customer Info -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginBottom="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="CUSTOMER DETAILS"
+                        android:textSize="10sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/md_theme_onSurfaceVariant"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Name: John Doe"
+                        android:textSize="12sp"
+                        android:textColor="@color/md_theme_onBackground"
+                        android:layout_marginBottom="4dp"
+                        android:id="@+id/tv_customer_name" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Email: john@example.com"
+                        android:textSize="12sp"
+                        android:textColor="@color/md_theme_onBackground"
+                        android:layout_marginBottom="4dp"
+                        android:id="@+id/tv_customer_email" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Address: 123 Main Street, City"
+                        android:textSize="12sp"
+                        android:textColor="@color/md_theme_onBackground"
+                        android:id="@+id/tv_customer_address" />
+
+                </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/md_theme_outlineVariant"
+                    android:layout_marginVertical="12dp" />
+
+                <!-- Product Details -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginBottom="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="PRODUCT DETAILS"
+                        android:textSize="10sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/md_theme_onSurfaceVariant"
+                        android:layout_marginBottom="8dp" />
+
+                    <!-- Product Row Header -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="8dp"
+                        android:paddingBottom="8dp"
+                        android:background="@color/md_theme_primaryContainer">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="ITEM"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/md_theme_onPrimaryContainer"
+                            android:paddingStart="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="QTY"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/md_theme_onPrimaryContainer"
+                            android:paddingStart="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="PRICE"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/md_theme_onPrimaryContainer"
+                            android:paddingHorizontal="8dp"
+                            android:gravity="end"
+                            android:minWidth="60dp" />
+
+                    </LinearLayout>
+
+                    <!-- Product Row -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp"
+                        android:paddingVertical="8dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Chemistry Lab Kit"
+                            android:textSize="12sp"
+                            android:textColor="@color/md_theme_onBackground"
+                            android:id="@+id/tv_item_name" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="1"
+                            android:textSize="12sp"
+                            android:textColor="@color/md_theme_onBackground"
+                            android:paddingStart="8dp"
+                            android:id="@+id/tv_item_qty" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="$45.99"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/md_theme_primary"
+                            android:paddingHorizontal="8dp"
+                            android:gravity="end"
+                            android:minWidth="60dp"
+                            android:id="@+id/tv_item_price" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="2dp"
+                    android:background="@color/md_theme_primary"
+                    android:layout_marginVertical="12dp" />
+
+                <!-- Amount Section -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginBottom="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="end"
+                        android:layout_marginBottom="8dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Subtotal:"
+                            android:textSize="12sp"
+                            android:textColor="@color/md_theme_onSurfaceVariant" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="$45.99"
+                            android:textSize="12sp"
+                            android:textColor="@color/md_theme_onBackground"
+                            android:paddingStart="16dp"
+                            android:minWidth="80dp"
+                            android:gravity="end"
+                            android:id="@+id/tv_subtotal_value" />
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="end"
+                        android:layout_marginBottom="8dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Tax (0%):"
+                            android:textSize="12sp"
+                            android:textColor="@color/md_theme_onSurfaceVariant" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="$0.00"
+                            android:textSize="12sp"
+                            android:textColor="@color/md_theme_onBackground"
+                            android:paddingStart="16dp"
+                            android:minWidth="80dp"
+                            android:gravity="end" />
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="end"
+                        android:paddingVertical="8dp"
+                        android:background="@color/md_theme_primaryContainer">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="TOTAL:"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/md_theme_onPrimaryContainer"
+                            android:paddingStart="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="$45.99"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/md_theme_primary"
+                            android:paddingEnd="8dp"
+                            android:minWidth="80dp"
+                            android:gravity="end"
+                            android:id="@+id/tv_total_value" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/md_theme_outlineVariant"
+                    android:layout_marginVertical="12dp" />
+
+                <!-- Payment Status Section -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginBottom="16dp"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp"
+                    android:background="@color/md_theme_primaryContainer"
+                    android:gravity="center">
+
+                    <ImageView
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:src="@drawable/check_24px"
+                        android:tint="@color/md_theme_primary"
+                        android:layout_marginBottom="8dp"
+                        android:contentDescription="Payment confirmed" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="PAYMENT CONFIRMED"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/md_theme_primary"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Payment has been received successfully"
+                        android:textSize="12sp"
+                        android:textColor="@color/md_theme_onPrimaryContainer" />
+
+                </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/md_theme_outlineVariant"
+                    android:layout_marginVertical="12dp" />
+
+                <!-- Order Status -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="ORDER STATUS"
+                        android:textSize="10sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/md_theme_onSurfaceVariant"
+                        android:layout_marginBottom="8dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Pending - Awaiting Processing"
+                        android:textColor="@color/md_theme_onPrimary"
+                        app:chipBackgroundColor="@color/md_theme_primary"
+                        android:id="@+id/chip_order_status" />
+
+                </LinearLayout>
+
+                <!-- Footer -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:layout_marginTop="20dp"
+                    android:paddingTop="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Thank you for your order!"
+                        android:textSize="12sp"
+                        android:textColor="@color/md_theme_onSurfaceVariant"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="For support, contact: support@studysphere.com"
+                        android:textSize="10sp"
+                        android:textColor="@color/md_theme_onSurfaceVariant" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Print Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_print_receipt"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="📄 Print Receipt"
+            android:textSize="16sp"
+            android:textAllCaps="false"
+            android:textColor="@color/md_theme_onPrimary"
+            app:backgroundTint="@color/md_theme_primary"
+            app:cornerRadius="12dp"
+            android:fontFamily="sans-serif-medium"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Download Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_generate_receipt"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="⬇️ Download as PDF"
+            android:textSize="16sp"
+            android:textAllCaps="false"
+            android:textColor="@color/md_theme_onSecondary"
+            app:backgroundTint="@color/md_theme_secondary"
+            app:cornerRadius="12dp"
+            android:fontFamily="sans-serif-medium" />
+
+    </LinearLayout>
+
+</ScrollView>
+
