@@ -48,7 +48,6 @@ public class CategoryFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // Initialize Views
         loadingLayout = view.findViewById(R.id.loadingLayout);
         categoryMainContent = view.findViewById(R.id.categoryMainContent);
         recyclerViewCategories = view.findViewById(R.id.recycler_view_categories);

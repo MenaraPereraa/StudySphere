@@ -25,6 +25,8 @@ import lk.menara.studysphere.fragment.SellerHomeFragment;
 import lk.menara.studysphere.fragment.SellerItemsFragment;
 import lk.menara.studysphere.fragment.SellerOrdersFragment;
 import lk.menara.studysphere.fragment.SellerProfileFragment;
+import lk.menara.studysphere.util.ConnectivityBatteryReceiver;
+import lk.menara.studysphere.listener.ConnectivityListener;
 
 public class SellerMainActivity extends AppCompatActivity
         implements BottomNavigationView.OnItemSelectedListener {
@@ -67,6 +69,45 @@ public class SellerMainActivity extends AppCompatActivity
         if (savedInstanceState == null) {
             loadFragment(new SellerHomeFragment());
             binding.bottomNavigation.getMenu().findItem(R.id.bottom_nav_seller_home).setChecked(true);
+        }
+    }
+
+    // NEW: Connectivity and Battery receiver fields
+    private ConnectivityBatteryReceiver connectivityBatteryReceiver;
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        // NEW: Register connectivity and battery receiver
+        connectivityBatteryReceiver = new ConnectivityBatteryReceiver(
+                new ConnectivityListener() {
+                    @Override
+                    public void onNetworkConnected() {}
+
+                    @Override
+                    public void onNetworkDisconnected() {}
+
+                    @Override
+                    public void onBatteryLow() {}
+
+                    @Override
+                    public void onBatteryOkay() {}
+
+                    @Override
+                    public void onPowerConnected() {}
+
+                    @Override
+                    public void onPowerDisconnected() {}
+                });
+        ConnectivityBatteryReceiver.register(this, connectivityBatteryReceiver);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // NEW: Unregister connectivity and battery receiver
+        if (connectivityBatteryReceiver != null) {
+            ConnectivityBatteryReceiver.unregister(this, connectivityBatteryReceiver);
         }
     }
 

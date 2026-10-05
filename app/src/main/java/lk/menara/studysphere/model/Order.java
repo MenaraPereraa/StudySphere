@@ -13,6 +13,9 @@ public class Order {
     private Address shippingAddress;
     private Address billingAddress;
     private List<OrderItem> orderItems;
+    // NEW: Tracking fields
+    private Timestamp trackingDateTime;
+    private Timestamp trackingUpdatedAt;
 
     public Order() {}
 
@@ -40,6 +43,13 @@ public class Order {
 
     public List<OrderItem> getOrderItems() { return orderItems; }
     public void setOrderItems(List<OrderItem> orderItems) { this.orderItems = orderItems; }
+
+    // NEW: Tracking getters and setters
+    public Timestamp getTrackingDateTime() { return trackingDateTime; }
+    public void setTrackingDateTime(Timestamp trackingDateTime) { this.trackingDateTime = trackingDateTime; }
+
+    public Timestamp getTrackingUpdatedAt() { return trackingUpdatedAt; }
+    public void setTrackingUpdatedAt(Timestamp trackingUpdatedAt) { this.trackingUpdatedAt = trackingUpdatedAt; }
 
     public static class Address {
         private String name;

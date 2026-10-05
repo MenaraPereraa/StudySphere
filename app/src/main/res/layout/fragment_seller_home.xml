@@ -126,6 +126,20 @@
 
                 </LinearLayout>
 
+                <!-- NEW: View Reports Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnViewReports"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="📊 View Analytics Report"
+                    android:textAllCaps="false"
+                    android:textSize="14sp"
+                    android:textColor="@color/md_theme_onPrimary"
+                    app:backgroundTint="@color/md_theme_primary"
+                    app:cornerRadius="8dp"
+                    android:layout_margin="4dp"
+                    android:fontFamily="sans-serif-medium"/>
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

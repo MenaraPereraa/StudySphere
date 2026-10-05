@@ -7,17 +7,23 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.view.GravityCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
+
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+
 import lk.menara.studysphere.R;
 import lk.menara.studysphere.activity.MainActivity;
 import lk.menara.studysphere.adapter.PaymentAdapter;
@@ -88,18 +94,64 @@ public class PaymentHistoryFragment extends Fragment {
                 .whereEqualTo("userId", uid)
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
+                    if (!isAdded()) return;
                     paymentList.clear();
+
+                    if (queryDocumentSnapshots.isEmpty()) {
+                        finishLoading();
+                        return;
+                    }
+
+                    final int total = queryDocumentSnapshots.size();
+                    final int[] loaded = {0};
+
                     for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
                         Payment payment = document.toObject(Payment.class);
-                        paymentList.add(payment);
+                        String orderId = payment.getOrderId();
+
+                        if (orderId == null || orderId.isEmpty()) {
+                            addPayment(payment, loaded, total);
+                            continue;
+                        }
+
+                        db.collection("orders").document(orderId)
+                                .get()
+                                .addOnSuccessListener(orderDoc -> {
+                                    if (orderDoc.exists()) {
+                                        payment.setTrackingDateTime(orderDoc.getTimestamp("trackingDateTime"));
+                                    }
+                                    addPayment(payment, loaded, total);
+                                })
+                                .addOnFailureListener(e -> addPayment(payment, loaded, total));
                     }
-                    adapter.notifyDataSetChanged();
-                    tvEmptyState.setVisibility(paymentList.isEmpty() ? View.VISIBLE : View.GONE);
-                    showLoading(false);
                 })
                 .addOnFailureListener(e -> {
-                    Log.e("PaymentHistory", "Error", e);
+                    Log.e("PaymentHistory", "Error details: ", e);
+                    if (getContext() != null) {
+                        Toast.makeText(getContext(), "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    }
                     showLoading(false);
                 });
+    }
+
+    private void addPayment(Payment payment, int[] loaded, int total) {
+        if (!isAdded()) return;
+        paymentList.add(payment);
+        loaded[0]++;
+        if (loaded[0] == total) {
+            finishLoading();
+        }
+    }
+
+    private void finishLoading() {
+        if (!isAdded()) return;
+        Collections.sort(paymentList, (a, b) -> {
+            String da = a.getPaymentDate() != null ? a.getPaymentDate() : "";
+            String db2 = b.getPaymentDate() != null ? b.getPaymentDate() : "";
+            return db2.compareTo(da);
+        });
+        adapter.notifyDataSetChanged();
+        tvEmptyState.setVisibility(paymentList.isEmpty() ? View.VISIBLE : View.GONE);
+        showLoading(false);
     }
 }

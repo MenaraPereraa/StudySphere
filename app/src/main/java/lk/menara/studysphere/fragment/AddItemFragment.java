@@ -48,6 +48,7 @@ public class AddItemFragment extends Fragment {
     private List<String> categoryNames = new ArrayList<>();
     private Uri selectedImageUri = null;
     private String existingImageUrl = null;
+    private String pendingCategory = null;
 
     private FirebaseAuth auth;
     private FirebaseFirestore firestore;
@@ -86,12 +87,12 @@ public class AddItemFragment extends Fragment {
         firestore = FirebaseFirestore.getInstance();
         storage = FirebaseStorage.getInstance(STORAGE_BUCKET_URL);
 
-        loadCategories();
-
         if (getArguments() != null && getArguments().containsKey("edit_product")) {
             editProduct = (Product) getArguments().getSerializable("edit_product");
             setupEditMode();
         }
+
+        loadCategories();
 
         binding.backButton.setOnClickListener(v -> getParentFragmentManager().popBackStack());
         binding.imageUploadCard.setOnClickListener(v -> pickImageLauncher.launch("image/*"));
@@ -113,12 +114,37 @@ public class AddItemFragment extends Fragment {
         try {
             List<Address> addresses = geocoder.getFromLocation(lat, lng, 1);
             if (addresses != null && !addresses.isEmpty()) {
-                return addresses.get(0).getAddressLine(0);
+                Address address = addresses.get(0);
+                String fullAddress = address.getAddressLine(0);
+
+                if (fullAddress != null && fullAddress.contains("+")) {
+                    StringBuilder readableAddress = new StringBuilder();
+
+                    if (address.getFeatureName() != null && !address.getFeatureName().contains("+")) {
+                        readableAddress.append(address.getFeatureName()).append(", ");
+                    }
+                    if (address.getSubLocality() != null) {
+                        readableAddress.append(address.getSubLocality()).append(", ");
+                    }
+                    if (address.getLocality() != null) {
+                        readableAddress.append(address.getLocality()).append(", ");
+                    }
+                    if (address.getCountryName() != null) {
+                        readableAddress.append(address.getCountryName());
+                    }
+
+                    String result = readableAddress.toString().trim();
+                    if (!result.isEmpty()) {
+                        return result.endsWith(",") ? result.substring(0, result.length() - 1) : result;
+                    }
+                }
+
+                return fullAddress;
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return "Lat: " + lat + ", Lng: " + lng;
+        return "Kolonnawa, Sri Lanka";
     }
 
     private void setupEditMode() {
@@ -128,7 +154,7 @@ public class AddItemFragment extends Fragment {
         binding.btnSave.setText("Update Item");
 
         binding.itemName.setText(editProduct.getName());
-        binding.category.setText(editProduct.getCategory());
+        pendingCategory = editProduct.getCategory();
         binding.price.setText(String.valueOf(editProduct.getPrice()));
         binding.stock.setText(String.valueOf(editProduct.getAvailableQty()));
         binding.description.setText(editProduct.getDescription());
@@ -153,7 +179,9 @@ public class AddItemFragment extends Fragment {
         if (auth.getCurrentUser() == null) return;
 
         String itemName = binding.itemName.getText().toString().trim();
-        String category = binding.category.getText().toString().trim();
+        String category = binding.categorySpinner.getSelectedItemPosition() > 0
+                ? String.valueOf(binding.categorySpinner.getSelectedItem())
+                : "";
         String priceStr = binding.price.getText().toString().trim();
         String stockStr = binding.stock.getText().toString().trim();
         String description = binding.description.getText().toString().trim();
@@ -255,8 +283,18 @@ public class AddItemFragment extends Fragment {
         firestore.collection("categories").get().addOnSuccessListener(snapshot -> {
             if (!isAdded() || binding == null) return;
             categoryNames.clear();
+            categoryNames.add("Select Category");
             for (Category cat : snapshot.toObjects(Category.class)) categoryNames.add(cat.getName());
-            binding.category.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_dropdown_item_1line, categoryNames));
+
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                    requireContext(), android.R.layout.simple_spinner_item, categoryNames);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            binding.categorySpinner.setAdapter(adapter);
+
+            if (pendingCategory != null) {
+                int pos = categoryNames.indexOf(pendingCategory);
+                if (pos >= 0) binding.categorySpinner.setSelection(pos);
+            }
         });
     }
 }

@@ -1,31 +1,51 @@
 package lk.menara.studysphere.activity;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
+
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
+
 import com.bumptech.glide.Glide;
+import com.google.android.material.badge.BadgeDrawable;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.jakewharton.threetenabp.AndroidThreeTen;
+
 import lk.menara.studysphere.R;
 import lk.menara.studysphere.databinding.ActivityMainBinding;
-import lk.menara.studysphere.fragment.*;
+import lk.menara.studysphere.fragment.CartFragment;
+import lk.menara.studysphere.fragment.CategoryFragment;
+import lk.menara.studysphere.fragment.DiscoverFragment;
+import lk.menara.studysphere.fragment.HomeFragment;
+import lk.menara.studysphere.fragment.PaymentHistoryFragment;
+import lk.menara.studysphere.fragment.ProfileFragment;
+import lk.menara.studysphere.fragment.WishlistFragment;
+import lk.menara.studysphere.service.MyFirebaseMessagingService;
+import lk.menara.studysphere.util.SwipeGestureDetector;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener,
@@ -38,6 +58,25 @@ public class MainActivity extends AppCompatActivity
     private ImageView headerProfilePic;
     private TextView headerUserName;
     private TextView headerUserEmail;
+    private SwipeGestureDetector swipeGestureDetector;
+    private boolean isNavigating = false;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private ListenerRegistration cartListener;
+    private int lastCartCount = 0;
+
+    private final ActivityResultLauncher<String> notificationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+                if (!granted) Log.w(TAG, "Notification permission denied");
+            });
+
+    private final ActivityResultLauncher<Intent> imagePickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    Uri uri = result.getData().getData();
+                    Glide.with(this).load(uri).circleCrop().into(headerProfilePic);
+                }
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,6 +89,9 @@ public class MainActivity extends AppCompatActivity
         firebaseFirestore = FirebaseFirestore.getInstance();
 
         setupToolbarClicks();
+
+        MyFirebaseMessagingService.createNotificationChannel(this);
+        requestNotificationPermission();
 
         FirebaseMessaging.getInstance().subscribeToTopic("all_users")
                 .addOnCompleteListener(task -> {
@@ -84,18 +126,178 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
+        initializeSwipeGestureDetector();
         updateMenuBasedOnAuthStatus();
         loadUserProfile();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        updateMenuBasedOnAuthStatus();
+        loadUserProfile();
+        listenToCartCount();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        removeCartListener();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        removeCartListener();
+        handler.removeCallbacksAndMessages(null);
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (swipeGestureDetector != null) {
+            swipeGestureDetector.onTouch(null, ev);
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
+    private void listenToCartCount() {
+        removeCartListener();
+        if (firebaseAuth.getCurrentUser() == null) {
+            lastCartCount = 0;
+            updateCartBadge(0);
+            return;
+        }
+        String uid = firebaseAuth.getCurrentUser().getUid();
+        cartListener = firebaseFirestore.collection("users")
+                .document(uid)
+                .collection("cart")
+                .addSnapshotListener((snapshot, error) -> {
+                    if (error != null || snapshot == null) return;
+                    if (isDestroyed() || isFinishing()) return;
+                    updateCartBadge(snapshot.size());
+                });
+    }
+
+    private void removeCartListener() {
+        if (cartListener != null) {
+            cartListener.remove();
+            cartListener = null;
+        }
+    }
+
+    private void updateCartBadge(int count) {
+        if (count > 0) {
+            BadgeDrawable badge = binding.bottomNavigation.getOrCreateBadge(R.id.bottom_nav_cart);
+            badge.setVisible(true);
+            badge.setMaxCharacterCount(3);
+            badge.setNumber(count);
+            badge.setBackgroundColor(ContextCompat.getColor(this, R.color.md_theme_primary));
+            badge.setBadgeTextColor(ContextCompat.getColor(this, R.color.md_theme_onPrimary));
+            if (count > lastCartCount) animateCartIcon();
+        } else {
+            binding.bottomNavigation.removeBadge(R.id.bottom_nav_cart);
+        }
+        lastCartCount = count;
+    }
+
+    private void animateCartIcon() {
+        View cartView = binding.bottomNavigation.findViewById(R.id.bottom_nav_cart);
+        if (cartView == null) return;
+        cartView.animate()
+                .scaleX(1.25f)
+                .scaleY(1.25f)
+                .setDuration(150)
+                .withEndAction(() -> cartView.animate().scaleX(1f).scaleY(1f).setDuration(150).start())
+                .start();
+    }
+
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+        }
     }
 
     private void setupToolbarClicks() {
         View toolbarProfile = findViewById(R.id.profile_image);
         if (toolbarProfile != null) {
-            toolbarProfile.setOnClickListener(v -> binding.drawerLayout.openDrawer(GravityCompat.START));
+            toolbarProfile.setOnClickListener(v -> {
+                loadUserProfile();
+                binding.drawerLayout.openDrawer(GravityCompat.START);
+            });
         }
         View menuIcon = findViewById(R.id.menu_icon);
         if (menuIcon != null) {
-            menuIcon.setOnClickListener(v -> binding.drawerLayout.openDrawer(GravityCompat.START));
+            menuIcon.setOnClickListener(v -> {
+                loadUserProfile();
+                binding.drawerLayout.openDrawer(GravityCompat.START);
+            });
+        }
+    }
+
+    private void initializeSwipeGestureDetector() {
+        swipeGestureDetector = new SwipeGestureDetector(this, new SwipeGestureDetector.GestureCallback() {
+            @Override
+            public void onSwipeLeft() {
+                navigateToNextBottomTab(true);
+            }
+
+            @Override
+            public void onSwipeRight() {
+                navigateToNextBottomTab(false);
+            }
+
+            @Override
+            public void onSwipeUp() {
+            }
+
+            @Override
+            public void onSwipeDown() {
+            }
+
+            @Override
+            public void onDoubleTap() {
+            }
+
+            @Override
+            public void onLongPress() {
+                if (!binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                    loadUserProfile();
+                    binding.drawerLayout.openDrawer(GravityCompat.START);
+                }
+            }
+        });
+    }
+
+    private void navigateToNextBottomTab(boolean isLeftSwipe) {
+        if (isNavigating || binding.drawerLayout.isDrawerOpen(GravityCompat.START)) return;
+
+        int currentId = binding.bottomNavigation.getSelectedItemId();
+        int nextId = currentId;
+
+        if (isLeftSwipe) {
+            if (currentId == R.id.bottom_nav_home) {
+                nextId = R.id.bottom_nav_discover;
+            } else if (currentId == R.id.bottom_nav_discover) {
+                nextId = R.id.bottom_nav_cart;
+            } else if (currentId == R.id.bottom_nav_cart) {
+                nextId = R.id.bottom_nav_profile;
+            }
+        } else {
+            if (currentId == R.id.bottom_nav_profile) {
+                nextId = R.id.bottom_nav_cart;
+            } else if (currentId == R.id.bottom_nav_cart) {
+                nextId = R.id.bottom_nav_discover;
+            } else if (currentId == R.id.bottom_nav_discover) {
+                nextId = R.id.bottom_nav_home;
+            }
+        }
+
+        if (nextId != currentId) {
+            isNavigating = true;
+            binding.bottomNavigation.setSelectedItemId(nextId);
+            handler.postDelayed(() -> isNavigating = false, 500);
         }
     }
 
@@ -197,10 +399,12 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void checkUserRole() {
+        if (firebaseAuth.getCurrentUser() == null) return;
         String uid = firebaseAuth.getCurrentUser().getUid();
         firebaseFirestore.collection("users").document(uid).get()
                 .addOnSuccessListener(doc -> {
-                    if ("seller".equals(doc.getString("role"))) {
+                    if (isDestroyed() || isFinishing()) return;
+                    if (doc.exists() && "seller".equals(doc.getString("role"))) {
                         startActivity(new Intent(this, SellerMainActivity.class));
                         finish();
                     }
@@ -212,6 +416,7 @@ public class MainActivity extends AppCompatActivity
         String uid = firebaseAuth.getCurrentUser().getUid();
         firebaseFirestore.collection("users").document(uid).get()
                 .addOnSuccessListener(doc -> {
+                    if (isDestroyed() || isFinishing()) return;
                     if (doc.exists()) {
                         Intent intent = new Intent(this, SellerVerificationActivity.class);
                         intent.putExtra("phone", doc.getString("mobile"));
@@ -225,15 +430,6 @@ public class MainActivity extends AppCompatActivity
         intent.setType("image/*");
         imagePickerLauncher.launch(intent);
     }
-
-    ActivityResultLauncher<Intent> imagePickerLauncher = registerForActivityResult(
-            new ActivityResultContracts.StartActivityForResult(),
-            result -> {
-                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-                    Uri uri = result.getData().getData();
-                    Glide.with(this).load(uri).circleCrop().into(headerProfilePic);
-                }
-            });
 
     public DrawerLayout getDrawerLayout() {
         return binding.drawerLayout;

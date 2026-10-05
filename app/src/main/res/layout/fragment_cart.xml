@@ -1,87 +1,116 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
+    android:background="#F4F9F8"
     tools:context=".fragment.CartFragment">
 
-    <!-- Header with Back Arrow -->
     <RelativeLayout
+        android:id="@+id/cart_header"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:gravity="center_vertical"
-        android:paddingStart="16dp"
+        android:layout_height="48dp"
+        android:background="#FFFFFF"
+        android:paddingStart="8dp"
         android:paddingEnd="16dp">
 
         <ImageView
             android:id="@+id/back_button"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_alignParentStart="true"
             android:layout_centerVertical="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Back Button"
+            android:padding="8dp"
             android:src="@drawable/arrow_back_24px"
-            android:tint="@color/md_theme_onBackground" />
+            app:tint="#1C1B1F" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
-            android:text="Cart"
-            android:textColor="@color/md_theme_onBackground"
-            android:textSize="20sp"
+            android:text="My Cart"
+            android:textColor="#1C1B1F"
+            android:textSize="17sp"
             android:textStyle="bold" />
-
     </RelativeLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/cart_cart_items"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:padding="8dp" />
-
-
-    <LinearLayout
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cart_summary"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="8dp">
+        android:layout_alignParentBottom="true"
+        app:cardBackgroundColor="#FFFFFF"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="6dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/md_theme_primaryContainer"
-            android:orientation="horizontal"
-            android:padding="16dp">
+            android:orientation="vertical"
+            android:padding="12dp">
 
-            <TextView
-                android:layout_width="0dp"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Total Amount"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/cart_text_total"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="LKR 2500.00"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Total Amount"
+                    android:textColor="#5F6B69"
+                    android:textSize="14sp" />
 
+                <TextView
+                    android:id="@+id/cart_text_total"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="LKR 0.00"
+                    android:textColor="#00695C"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/cart_btn_proceed"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="10dp"
+                android:backgroundTint="#00695C"
+                android:text="Proceed to Shipping"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                app:cornerRadius="24dp" />
         </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/cart_btn_proceed"
-            android:layout_width="match_parent"
-            android:layout_height="60dp"
-            android:layout_marginTop="10dp"
-            android:text="Proceed to Shipping"
-            android:textSize="16sp" />
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/cart_cart_items"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@id/cart_summary"
+        android:layout_below="@id/cart_header"
+        android:clipToPadding="false"
+        android:paddingTop="6dp"
+        android:paddingBottom="12dp" />
 
-    </LinearLayout>
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_scroll_top"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/cart_summary"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="10dp"
+        android:backgroundTint="#00695C"
+        android:contentDescription="Scroll to top"
+        android:src="@drawable/arrow_back_24px"
+        app:fabSize="mini"
+        app:tint="#FFFFFF" />
 
-</LinearLayout>
+</RelativeLayout>

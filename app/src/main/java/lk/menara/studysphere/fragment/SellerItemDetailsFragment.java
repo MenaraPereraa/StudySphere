@@ -1,7 +1,9 @@
 package lk.menara.studysphere.fragment;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
@@ -27,8 +29,15 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import lk.menara.studysphere.R;
 import lk.menara.studysphere.adapter.ReviewAdapter;
@@ -43,6 +52,7 @@ public class SellerItemDetailsFragment extends Fragment implements OnMapReadyCal
     private GoogleMap googleMap;
     private FirebaseFirestore firestore;
     private String productId;
+    private final ExecutorService imageExecutor = Executors.newSingleThreadExecutor();
     private static final String TAG = "SellerDetails";
 
     public SellerItemDetailsFragment() {}
@@ -109,19 +119,84 @@ public class SellerItemDetailsFragment extends Fragment implements OnMapReadyCal
         binding.stockQuantity.setText(product.getAvailableQty() + " units available");
         binding.productPrice.setText(String.format(Locale.US, "LKR %,.2f", product.getPrice()));
 
-        if (product.getImage() != null && !product.getImage().isEmpty()) {
-            try {
-                String base64 = product.getImage();
-                if (base64.contains(",")) {
-                    base64 = base64.split(",")[1];
-                }
-                byte[] bytes = Base64.decode(base64, Base64.DEFAULT);
-                Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                binding.productImage.setImageBitmap(bitmap);
-            } catch (Exception e) {
-                binding.productImage.setImageResource(R.drawable.default_profile);
+        loadProductImage(product.getImage());
+    }
+
+    // Decodes off the main thread; the default image is only shown if loading really fails.
+    private void loadProductImage(@Nullable String imageData) {
+        binding.productImage.setImageResource(R.drawable.default_profile); // placeholder / clears stale image
+        if (imageData == null || imageData.trim().isEmpty()) return;
+
+        final Context appContext = requireContext().getApplicationContext();
+        imageExecutor.execute(() -> {
+            byte[] bytes = readImageBytes(appContext, imageData.trim());
+            Bitmap bitmap = bytes == null ? null : decodeSampled(bytes, 1080, 800);
+            if (bitmap == null) {
+                Log.w(TAG, "Image load failed. length=" + imageData.length()
+                        + " start=" + imageData.substring(0, Math.min(60, imageData.length())));
+                return;
             }
+            if (getActivity() == null) return;
+            getActivity().runOnUiThread(() -> {
+                if (binding != null) binding.productImage.setImageBitmap(bitmap);
+            });
+        });
+    }
+
+    // Accepts an http(s) URL, a content:/file: Uri, or Base64 (raw, data-URI, URL-safe).
+    @Nullable
+    private byte[] readImageBytes(Context context, String value) {
+        try {
+            if (value.startsWith("http://") || value.startsWith("https://")) {
+                HttpURLConnection conn = (HttpURLConnection) new URL(value).openConnection();
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(15000);
+                try (InputStream in = conn.getInputStream()) {
+                    return readAll(in);
+                } finally {
+                    conn.disconnect();
+                }
+            }
+            if (value.startsWith("content:") || value.startsWith("file:")) {
+                try (InputStream in = context.getContentResolver().openInputStream(Uri.parse(value))) {
+                    return in == null ? null : readAll(in);
+                }
+            }
+            int marker = value.indexOf("base64,");
+            if (marker >= 0) value = value.substring(marker + "base64,".length());
+            value = value.replaceAll("\\s", "");
+            try {
+                return Base64.decode(value, Base64.DEFAULT);
+            } catch (IllegalArgumentException e) {
+                return Base64.decode(value, Base64.URL_SAFE);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "readImageBytes error", e);
+            return null;
         }
+    }
+
+    private byte[] readAll(InputStream in) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] buf = new byte[8192];
+        int n;
+        while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+        return out.toByteArray();
+    }
+
+    @Nullable
+    private Bitmap decodeSampled(byte[] bytes, int reqW, int reqH) {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
+
+        int sample = 1;
+        while ((bounds.outWidth / (sample * 2)) >= reqW && (bounds.outHeight / (sample * 2)) >= reqH) {
+            sample *= 2;
+        }
+        BitmapFactory.Options opts = new BitmapFactory.Options();
+        opts.inSampleSize = sample;
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.length, opts);
     }
 
     private void showReviewsDialog() {
@@ -201,6 +276,10 @@ public class SellerItemDetailsFragment extends Fragment implements OnMapReadyCal
 
     @Override public void onResume() { super.onResume(); if(binding != null) binding.mapView.onResume(); }
     @Override public void onPause() { if(binding != null) binding.mapView.onPause(); super.onPause(); }
-    @Override public void onDestroy() { if(binding != null) { binding.mapView.onDestroy(); binding = null; } super.onDestroy(); }
+    @Override public void onDestroy() {
+        imageExecutor.shutdownNow();
+        if(binding != null) { binding.mapView.onDestroy(); binding = null; }
+        super.onDestroy();
+    }
     @Override public void onLowMemory() { super.onLowMemory(); if(binding != null) binding.mapView.onLowMemory(); }
 }

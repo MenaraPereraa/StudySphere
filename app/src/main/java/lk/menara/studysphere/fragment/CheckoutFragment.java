@@ -84,6 +84,9 @@ public class CheckoutFragment extends Fragment {
     private boolean isProcessing = false;
     private String currentOrderId;
 
+    // IDs of the cart items selected in CartFragment (null = no filter, use whole cart)
+    private List<String> selectedIds;
+
     private final OkHttpClient httpClient = new OkHttpClient();
 
     private Executor executor;
@@ -102,6 +105,11 @@ public class CheckoutFragment extends Fragment {
         super.onCreate(savedInstanceState);
         db = FirebaseFirestore.getInstance();
         firebaseAuth = FirebaseAuth.getInstance();
+
+        if (getArguments() != null) {
+            selectedIds = getArguments().getStringArrayList("selected_ids");
+        }
+
         createNotificationChannel();
     }
 
@@ -131,10 +139,12 @@ public class CheckoutFragment extends Fragment {
     private void showLoading(boolean isVisible) {
         if (getActivity() != null) {
             getActivity().runOnUiThread(() -> {
-                if (binding.loadingLayout != null) {
+                if (binding != null && binding.loadingLayout != null) {
                     binding.loadingLayout.getRoot().setVisibility(isVisible ? View.VISIBLE : View.GONE);
                 }
-                binding.checkoutBtnProceed.setEnabled(!isVisible);
+                if (binding != null) {
+                    binding.checkoutBtnProceed.setEnabled(!isVisible);
+                }
             });
         }
     }
@@ -169,10 +179,31 @@ public class CheckoutFragment extends Fragment {
     private void checkBiometricAndProceed() {
         BiometricManager biometricManager = BiometricManager.from(requireContext());
         int canAuth = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG);
-        if (canAuth == BiometricManager.BIOMETRIC_SUCCESS) {
-            biometricPrompt.authenticate(promptInfo);
-        } else {
-            startPayHerePayment();
+
+        switch (canAuth) {
+            case BiometricManager.BIOMETRIC_SUCCESS:
+                biometricPrompt.authenticate(promptInfo);
+                break;
+
+            case BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE:
+                Toast.makeText(getContext(), "This device doesn't support fingerprint verification.", Toast.LENGTH_SHORT).show();
+                startPayHerePayment();
+                break;
+
+            case BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED:
+                Toast.makeText(getContext(), "No fingerprint is set up on this device.", Toast.LENGTH_SHORT).show();
+                startPayHerePayment();
+                break;
+
+            case BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE:
+                Toast.makeText(getContext(), "Fingerprint hardware is currently unavailable.", Toast.LENGTH_SHORT).show();
+                startPayHerePayment();
+                break;
+
+            default:
+                Toast.makeText(getContext(), "Biometric verification isn't available. Proceeding to secure checkout.", Toast.LENGTH_SHORT).show();
+                startPayHerePayment();
+                break;
         }
     }
 
@@ -309,78 +340,11 @@ public class CheckoutFragment extends Fragment {
         }, 3000);
     }
 
-//    private void saveOrderToFirestore(StatusResponse statusResponse) {
-//        String uid = firebaseAuth.getUid();
-//        if (uid == null) { showLoading(false); return; }
-//
-//        getCartItems(cartItems -> {
-//            List<String> productIds = new ArrayList<>();
-//            for (CartItem item : cartItems) productIds.add(item.getProductId());
-//
-//            getProductsByIds(productIds, productMap -> {
-//                List<Order.OrderItem> orderItemsList = new ArrayList<>();
-//                for (CartItem cartItem : cartItems) {
-//                    orderItemsList.add(Order.OrderItem.builder()
-//                            .productId(cartItem.getProductId())
-//                            .unitPrice(cartItem.getPrice())
-//                            .quantity(cartItem.getQuantity())
-//                            .build());
-//                }
-//
-//                Order order = new Order();
-//                order.setOrderId(currentOrderId);
-//                order.setUserId(uid);
-//                order.setTotalAmount(total);
-//                order.setStatus("PAID");
-//                order.setOrderDate(Timestamp.now());
-//                order.setOrderItems(orderItemsList);
-//                order.setShippingAddress(Order.Address.builder()
-//                        .name(binding.shippingDetailsName.getText().toString())
-//                        .email(binding.shippingDetailsEmail.getText().toString())
-//                        .contact(binding.shippingDetailsContact.getText().toString())
-//                        .build());
-//
-//                Payment payment = Payment.builder()
-//                        .paymentId("PY-" + System.currentTimeMillis())
-//                        .orderId(currentOrderId)
-//                        .userId(uid)
-//                        .amount(total)
-//                        .status("SUCCESS")
-//                        .paymentDate(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date()))
-//                        .transactionId(String.valueOf(statusResponse.getPaymentNo()))
-//                        .build();
-//
-//                db.collection("orders").document(currentOrderId).set(order)
-//                        .addOnSuccessListener(aVoid -> {
-//                            // 1. ✅ Send Local Notification
-//                            sendPaymentNotification("Payment Successful", "Your payment for Order " + currentOrderId + " was successful!");
-//
-//                            // 2. ✅ Save to Firestore Notifications (This allows NotificationActivity to see it)
-//                            saveNotificationToFirestore("Payment Successful", "Your payment for Order " + currentOrderId + " was successful!");
-//
-//                            // 3. ✅ Save to SQLite
-//                            saveMessageToSQLite("Payment Successful for " + currentOrderId);
-//
-//                            // 4. ✅ Generate Receipt
-//                            File file = ReceiptGenerator.generateReceipt(requireContext(), order, payment, productMap);
-//
-//                            showLoading(false);
-//                            if (file != null) ReceiptGenerator.shareReceipt(requireContext(), file);
-//                            clearCartAndFinish(uid);
-//                        })
-//                        .addOnFailureListener(e -> {
-//                            showLoading(false);
-//                            handleUiError("Firestore Error");
-//                        });
-//            });
-//        });
-//    }
-
-
     private void saveOrderToFirestore(StatusResponse statusResponse) {
         String uid = firebaseAuth.getUid();
         if (uid == null) { showLoading(false); return; }
 
+        // getCartItems() already returns only the selected items
         getCartItems(cartItems -> {
             List<String> productIds = new ArrayList<>();
             for (CartItem item : cartItems) productIds.add(item.getProductId());
@@ -447,6 +411,7 @@ public class CheckoutFragment extends Fragment {
             });
         });
     }
+
     private void saveNotificationToFirestore(String title, String message) {
         Map<String, Object> notification = new HashMap<>();
         notification.put("title", title);
@@ -513,11 +478,16 @@ public class CheckoutFragment extends Fragment {
         }
     }
 
+    // Deletes only the purchased (selected) items from the cart
     private void clearCartAndFinish(String uid) {
         db.collection("users").document(uid).collection("cart").get()
                 .addOnSuccessListener(qds -> {
                     WriteBatch batch = db.batch();
-                    for (QueryDocumentSnapshot ds : qds) batch.delete(ds.getReference());
+                    for (QueryDocumentSnapshot ds : qds) {
+                        if (selectedIds == null || selectedIds.contains(ds.getId())) {
+                            batch.delete(ds.getReference());
+                        }
+                    }
                     batch.commit().addOnSuccessListener(unused -> navigateHome());
                 });
     }
@@ -542,6 +512,8 @@ public class CheckoutFragment extends Fragment {
 
     private void calculateOrderTotal() {
         getCartItems(cartItems -> {
+            if (binding == null) return;
+
             double subTotal = 0;
             if (cartItems != null) {
                 for (CartItem item : cartItems) subTotal += item.getPrice() * item.getQuantity();
@@ -555,6 +527,7 @@ public class CheckoutFragment extends Fragment {
         });
     }
 
+    // Loads cart items from Firestore, keeping only the ones selected in CartFragment
     private void getCartItems(FirestoreCallback<List<CartItem>> callback) {
         String uid = firebaseAuth.getUid();
         if (uid == null) return;
@@ -562,6 +535,8 @@ public class CheckoutFragment extends Fragment {
                 .addOnSuccessListener(qds -> {
                     List<CartItem> list = new ArrayList<>();
                     for (QueryDocumentSnapshot doc : qds) {
+                        if (selectedIds != null && !selectedIds.contains(doc.getId())) continue;
+
                         CartItem item = doc.toObject(CartItem.class);
                         item.setId(doc.getId());
                         list.add(item);

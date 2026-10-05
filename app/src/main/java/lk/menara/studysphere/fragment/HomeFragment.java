@@ -9,6 +9,7 @@ import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.*;
+import android.widget.Toast;
 
 import androidx.annotation.*;
 import androidx.core.app.ActivityCompat;
@@ -34,6 +35,7 @@ import lk.menara.studysphere.model.Product;
 import lk.menara.studysphere.adapter.CategoryAdapter;
 import lk.menara.studysphere.adapter.ProductAdapter;
 import lk.menara.studysphere.model.User;
+import lk.menara.studysphere.util.CacheDatabaseHelper;
 
 public class HomeFragment extends Fragment {
 
@@ -97,6 +99,9 @@ public class HomeFragment extends Fragment {
     }
 
     private void loadFeaturedProducts() {
+        // NEW: Try loading from cache first if available
+        CacheDatabaseHelper cacheDb = CacheDatabaseHelper.getInstance(requireContext());
+        
         FirebaseFirestore.getInstance().collection("products").get()
                 .addOnSuccessListener(query -> {
                     if (!isAdded() || binding == null) return;
@@ -111,13 +116,35 @@ public class HomeFragment extends Fragment {
                     allProducts.clear();
                     allProducts.addAll(products);
 
+                    // NEW: Cache the products
+                    cacheDb.put(CacheDatabaseHelper.KEY_HOME_PRODUCTS, products);
+
                     if (products.isEmpty()) {
                         showHomeUI(true);
                     } else {
                         loadProductRatings(products);
                     }
                 })
-                .addOnFailureListener(e -> showHomeUI(true));
+                .addOnFailureListener(e -> {
+                    // NEW: Load from cache on failure
+                    String cachedJson = cacheDb.get(CacheDatabaseHelper.KEY_HOME_PRODUCTS);
+                    if (cachedJson != null) {
+                        try {
+                            java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<List<Product>>() {}.getType();
+                            List<Product> cachedProducts = new com.google.gson.Gson().fromJson(cachedJson, listType);
+                            if (cachedProducts != null && !cachedProducts.isEmpty()) {
+                                allProducts.clear();
+                                allProducts.addAll(cachedProducts);
+                                loadProductRatings(cachedProducts);
+                                Toast.makeText(getContext(), "Showing offline data", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+                    showHomeUI(true);
+                });
     }
 
     private void loadProductRatings(List<Product> products) {

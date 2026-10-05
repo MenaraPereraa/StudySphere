@@ -1,6 +1,8 @@
 package lk.menara.studysphere.adapter;
 
 import android.content.Context;
+import android.location.Address;
+import android.location.Geocoder;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -11,8 +13,10 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.google.android.material.button.MaterialButton;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import lk.menara.studysphere.R;
 import lk.menara.studysphere.model.Product;
 
@@ -55,7 +59,7 @@ public class DiscoverProductAdapter extends RecyclerView.Adapter<DiscoverProduct
         holder.name.setText(product.getName() != null ? product.getName() : "No name");
         holder.rating.setText(String.valueOf(product.getRating()));
         holder.ratingValue.setText(String.valueOf(product.getRating()));
-        holder.location.setText("Colombo");
+        holder.location.setText(getLocationFromLatLng(product.getLatitude(), product.getLongitude()));
         holder.description.setText(product.getDescription() != null ? product.getDescription() : "");
 
         if (!TextUtils.isEmpty(product.getImage())) {
@@ -95,6 +99,22 @@ public class DiscoverProductAdapter extends RecyclerView.Adapter<DiscoverProduct
                 holder.wishlistButton.setColorFilter(context.getColor(android.R.color.holo_red_dark));
             }
         });
+    }
+
+    private String getLocationFromLatLng(double lat, double lng) {
+        if (lat == 0.0 && lng == 0.0) {
+            return "Location not set";
+        }
+        Geocoder geocoder = new Geocoder(context, Locale.getDefault());
+        try {
+            List<Address> addresses = geocoder.getFromLocation(lat, lng, 1);
+            if (addresses != null && !addresses.isEmpty()) {
+                return addresses.get(0).getAddressLine(0);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return "Lat: " + String.format("%.4f", lat) + ", Lng: " + String.format("%.4f", lng);
     }
 
     @Override

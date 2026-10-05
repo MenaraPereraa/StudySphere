@@ -1,9 +1,11 @@
 package lk.menara.studysphere.fragment;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -11,11 +13,12 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.FirebaseFirestore;
 
-import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -24,7 +27,7 @@ import lk.menara.studysphere.databinding.FragmentSellerOrderDetailsBinding;
 import lk.menara.studysphere.model.Order;
 import lk.menara.studysphere.model.Payment;
 import lk.menara.studysphere.model.Product;
-import lk.menara.studysphere.util.ReceiptGenerator;
+import lk.menara.studysphere.util.DateTimePickerHelper;
 
 public class SellerOrderDetailsFragment extends Fragment {
 
@@ -34,7 +37,7 @@ public class SellerOrderDetailsFragment extends Fragment {
 
     private Order currentOrder;
     private Payment currentPayment;
-    private Map<String, Product> productMap = new HashMap<>();
+    private final Map<String, Product> productMap = new HashMap<>();
 
     @Nullable
     @Override
@@ -49,12 +52,11 @@ public class SellerOrderDetailsFragment extends Fragment {
 
         binding.backButton.setOnClickListener(v -> requireActivity().getSupportFragmentManager().popBackStack());
 
-        binding.btnGenerateReceipt.setOnClickListener(v -> {
-            if (currentOrder != null && currentPayment != null) {
-                File pdfFile = ReceiptGenerator.generateReceipt(requireContext(), currentOrder, currentPayment, productMap);
-                if (pdfFile != null) ReceiptGenerator.shareReceipt(requireContext(), pdfFile);
-            } else {
-                Toast.makeText(getContext(), "Loading data, please wait...", Toast.LENGTH_SHORT).show();
+        // Tracking date/time picker
+        binding.btnSetTrackingDatetime.setOnClickListener(v -> {
+            if (currentOrder != null) {
+                DateTimePickerHelper.showDateTimePicker(this, currentOrder.getTrackingDateTime(),
+                        (timestamp, formatted) -> saveTrackingDateTime(timestamp));
             }
         });
 
@@ -67,13 +69,15 @@ public class SellerOrderDetailsFragment extends Fragment {
             if (currentOrder != null) {
                 currentOrder.setOrderId(doc.getId());
 
-                db.collection("payments").whereEqualTo("orderId", orderId).get().addOnSuccessListener(paymentDocs -> {
-                    if (!paymentDocs.isEmpty()) {
-                        currentPayment = paymentDocs.getDocuments().get(0).toObject(Payment.class);
-                    }
-
-                    loadProductsAndPopulateUI();
-                });
+                // Checkout saves payments in the "payment" collection (singular)
+                db.collection("payment").whereEqualTo("orderId", orderId).get()
+                        .addOnSuccessListener(paymentDocs -> {
+                            if (!paymentDocs.isEmpty()) {
+                                currentPayment = paymentDocs.getDocuments().get(0).toObject(Payment.class);
+                            }
+                            loadProductsAndPopulateUI();
+                        })
+                        .addOnFailureListener(e -> loadProductsAndPopulateUI());
             }
         });
     }
@@ -84,50 +88,110 @@ public class SellerOrderDetailsFragment extends Fragment {
             return;
         }
 
+        final int total = currentOrder.getOrderItems().size();
         final int[] count = {0};
         for (Order.OrderItem item : currentOrder.getOrderItems()) {
-            db.collection("products").document(item.getProductId()).get().addOnSuccessListener(pDoc -> {
-                Product p = pDoc.toObject(Product.class);
-                if (p != null) productMap.put(item.getProductId(), p);
+            db.collection("products").document(item.getProductId()).get()
+                    .addOnSuccessListener(pDoc -> {
+                        Product p = pDoc.toObject(Product.class);
+                        if (p != null) productMap.put(item.getProductId(), p);
 
-                count[0]++;
-                if (count[0] == currentOrder.getOrderItems().size()) {
-                    updateUI();
-                }
-            });
+                        count[0]++;
+                        if (count[0] == total) updateUI();
+                    })
+                    .addOnFailureListener(e -> {
+                        count[0]++;
+                        if (count[0] == total) updateUI();
+                    });
         }
     }
 
     private void updateUI() {
+        if (binding == null || currentOrder == null) return;
         View root = binding.getRoot();
 
+        // Order / payment info
         setTextSafe(root, R.id.tv_order_no_value, currentOrder.getOrderId());
+
         if (currentOrder.getOrderDate() != null) {
-            SimpleDateFormat sdf = new SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault());
+            SimpleDateFormat sdf = new SimpleDateFormat("dd MMM yyyy • hh:mm a", Locale.getDefault());
             setTextSafe(root, R.id.tv_date_value, sdf.format(currentOrder.getOrderDate().toDate()));
         }
 
+        String paymentId = (currentPayment != null && currentPayment.getPaymentId() != null)
+                ? currentPayment.getPaymentId() : "-";
+        String transactionId = (currentPayment != null && currentPayment.getTransactionId() != null)
+                ? currentPayment.getTransactionId() : "-";
+        setTextSafe(root, R.id.tv_payment_id_value, paymentId);
+        setTextSafe(root, R.id.tv_transaction_id_value, transactionId);
+
+        // Customer details
         if (currentOrder.getShippingAddress() != null) {
             Order.Address addr = currentOrder.getShippingAddress();
-            setTextSafe(root, R.id.tv_customer_name, "Name: " + addr.getName());
-            setTextSafe(root, R.id.tv_customer_email, "Email: " + addr.getEmail());
-            setTextSafe(root, R.id.tv_customer_address, "Contact: " + addr.getContact());
+            setTextSafe(root, R.id.tv_customer_name, addr.getName());
+            setTextSafe(root, R.id.tv_customer_email, addr.getEmail());
+            setTextSafe(root, R.id.tv_customer_address, addr.getContact());
         }
 
-        if (!currentOrder.getOrderItems().isEmpty()) {
-            Order.OrderItem item = currentOrder.getOrderItems().get(0);
-            Product p = productMap.get(item.getProductId());
-            setTextSafe(root, R.id.tv_item_name, p != null ? p.getName() : "Unknown Item");
-            setTextSafe(root, R.id.tv_item_qty, String.valueOf(item.getQuantity()));
-            setTextSafe(root, R.id.tv_item_price, String.format(Locale.getDefault(), "LKR %,.2f", item.getUnitPrice()));
+        // Order items table (all items)
+        LinearLayout container = root.findViewById(R.id.items_container);
+        container.removeAllViews();
+
+        double subtotal = 0;
+        List<Order.OrderItem> items = currentOrder.getOrderItems();
+        if (items != null) {
+            LayoutInflater inflater = LayoutInflater.from(requireContext());
+            int index = 1;
+            for (Order.OrderItem item : items) {
+                Product p = productMap.get(item.getProductId());
+                double amount = item.getUnitPrice() * item.getQuantity();
+                subtotal += amount;
+
+                View row = inflater.inflate(R.layout.item_seller_order_line, container, false);
+                setTextSafe(row, R.id.tv_line_no, String.valueOf(index));
+                setTextSafe(row, R.id.tv_line_name, p != null ? p.getName() : "Unknown Item");
+                setTextSafe(row, R.id.tv_line_qty, String.valueOf(item.getQuantity()));
+                setTextSafe(row, R.id.tv_line_amount, String.format(Locale.US, "%,.2f", amount));
+
+                if (index % 2 == 0) row.setBackgroundColor(Color.parseColor("#E8F3EF"));
+                container.addView(row);
+                index++;
+            }
         }
 
-        String totalFormatted = String.format(Locale.getDefault(), "LKR %,.2f", currentOrder.getTotalAmount());
-        setTextSafe(root, R.id.tv_subtotal_value, totalFormatted);
-        setTextSafe(root, R.id.tv_total_value, totalFormatted);
+        // Totals (shipping = total - items subtotal)
+        double total = currentOrder.getTotalAmount();
+        double shipping = Math.max(0, total - subtotal);
+        setTextSafe(root, R.id.tv_subtotal_value, String.format(Locale.US, "LKR %,.2f", subtotal));
+        setTextSafe(root, R.id.tv_shipping_value, String.format(Locale.US, "LKR %,.2f", shipping));
+        setTextSafe(root, R.id.tv_total_value, String.format(Locale.US, "LKR %,.2f", total));
 
-        if (binding.chipOrderStatus != null) {
+        // Status
+        if (binding.chipOrderStatus != null && currentOrder.getStatus() != null) {
             binding.chipOrderStatus.setText(currentOrder.getStatus());
+        }
+
+        // Tracking (shows "Not set" when empty)
+        setTextSafe(root, R.id.tv_tracking_datetime_value,
+                DateTimePickerHelper.formatDateTime(currentOrder.getTrackingDateTime()));
+    }
+
+    // Save tracking date/time to Firestore
+    private void saveTrackingDateTime(Timestamp timestamp) {
+        if (orderId != null && timestamp != null) {
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("trackingDateTime", timestamp);
+            updates.put("trackingUpdatedAt", Timestamp.now());
+
+            db.collection("orders").document(orderId).update(updates)
+                    .addOnSuccessListener(v -> {
+                        currentOrder.setTrackingDateTime(timestamp);
+                        currentOrder.setTrackingUpdatedAt(Timestamp.now());
+                        updateUI();
+                        Toast.makeText(getContext(), "Tracking date updated", Toast.LENGTH_SHORT).show();
+                    })
+                    .addOnFailureListener(e ->
+                            Toast.makeText(getContext(), "Failed to update tracking", Toast.LENGTH_SHORT).show());
         }
     }
 

@@ -28,6 +28,14 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyDnack1ZUYjgVkQRkIgnKvC8YpGCjoup1s" />
 
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="studysphere_notifications" />
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/notifications_24px" />
+
         <activity
             android:name=".activity.SplashActivity"
             android:exported="true">
@@ -49,6 +57,7 @@
         <activity android:name=".activity.SellerVerificationActivity" android:exported="false" />
         <activity android:name=".activity.NotificationActivity" android:exported="false" />
         <activity android:name=".activity.MapPickerActivity" android:exported="false" />
+        <activity android:name=".activity.ReportsActivity" android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

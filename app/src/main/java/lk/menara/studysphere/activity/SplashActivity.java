@@ -6,6 +6,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
@@ -14,6 +15,7 @@ import android.view.WindowManager;
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.airbnb.lottie.LottieAnimationView;
 import com.google.android.material.button.MaterialButton;
 import com.google.firebase.auth.FirebaseAuth;
 
@@ -22,8 +24,12 @@ import lk.menara.studysphere.util.NetworkUtil;
 
 public class SplashActivity extends AppCompatActivity {
 
+    private static final String TAG = "SplashActivity";
     private static final int SPLASH_DELAY = 3000;
+
     private Handler splashHandler;
+    private LottieAnimationView splashLottie;
+    private boolean hasNavigated = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,11 +39,33 @@ public class SplashActivity extends AppCompatActivity {
         setContentView(R.layout.activity_splash);
 
         setupFullscreen();
-
-        checkNetworkStatus();
+        setupLottie();
 
         MaterialButton getStartedBtn = findViewById(R.id.btnBuy);
         getStartedBtn.setOnClickListener(v -> handleGetStartedClick());
+
+        checkNetworkStatus();
+    }
+
+    /**
+     * Makes sure the splash animation plays on real devices, even when the phone has
+     * animations disabled (Battery Saver, "Remove animations", animator scale = off).
+     */
+    private void setupLottie() {
+        splashLottie = findViewById(R.id.splashLottie);
+
+        // Play even if the system animation scale is 0 / disabled
+        splashLottie.setIgnoreDisabledSystemAnimations(true);
+
+        // If the animation still doesn't draw on a specific phone's GPU, uncomment this line:
+        // splashLottie.setRenderMode(com.airbnb.lottie.RenderMode.SOFTWARE);
+
+        // Shows the real reason in Logcat if the animation file fails to load
+        splashLottie.setFailureListener(throwable ->
+                Log.e(TAG, "Lottie animation failed to load", throwable));
+
+        splashLottie.setRepeatCount(com.airbnb.lottie.LottieDrawable.INFINITE);
+        splashLottie.playAnimation();
     }
 
     private void checkNetworkStatus() {
@@ -75,6 +103,10 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void navigateTo(Class<?> destination) {
+        // Prevents opening two screens if the timer and the button fire together
+        if (hasNavigated) return;
+        hasNavigated = true;
+
         Intent intent = new Intent(SplashActivity.this, destination);
         startActivity(intent);
         overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
@@ -98,10 +130,22 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        // Some devices pause the animation when the app is backgrounded; restart if needed
+        if (splashLottie != null && !splashLottie.isAnimating()) {
+            splashLottie.playAnimation();
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         if (splashHandler != null) {
             splashHandler.removeCallbacksAndMessages(null);
+        }
+        if (splashLottie != null) {
+            splashLottie.cancelAnimation();
         }
     }
 }

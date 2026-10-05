@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 import lk.menara.studysphere.R;
 import lk.menara.studysphere.adapter.DiscoverProductAdapter;
 import lk.menara.studysphere.model.Product;
+import lk.menara.studysphere.util.CacheDatabaseHelper;
 
 public class DiscoverFragment extends Fragment {
 
@@ -91,7 +92,13 @@ public class DiscoverFragment extends Fragment {
     }
 
     private void loadProducts() {
+        if (!isAdded() || getContext() == null) return;
+        
+        CacheDatabaseHelper cacheDb = CacheDatabaseHelper.getInstance(getContext());
+        
         db.collection("products").get().addOnSuccessListener(snapshots -> {
+            if (!isAdded() || getContext() == null) return;
+            
             allProducts.clear();
             if (snapshots.isEmpty()) { showLoading(false); return; }
             for (QueryDocumentSnapshot doc : snapshots) {
@@ -101,8 +108,29 @@ public class DiscoverFragment extends Fragment {
                     allProducts.add(product);
                 }
             }
+            cacheDb.put(CacheDatabaseHelper.KEY_DISCOVER_PRODUCTS, allProducts);
             loadProductRatings();
-        }).addOnFailureListener(e -> showLoading(false));
+        }).addOnFailureListener(e -> {
+            if (!isAdded() || getContext() == null) return;
+            
+            String cachedJson = cacheDb.get(CacheDatabaseHelper.KEY_DISCOVER_PRODUCTS);
+            if (cachedJson != null) {
+                try {
+                    java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<List<Product>>() {}.getType();
+                    List<Product> cachedProducts = new com.google.gson.Gson().fromJson(cachedJson, listType);
+                    if (cachedProducts != null && !cachedProducts.isEmpty()) {
+                        allProducts.clear();
+                        allProducts.addAll(cachedProducts);
+                        loadProductRatings();
+                        Toast.makeText(getContext(), "Showing offline data", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+            showLoading(false);
+        });
     }
 
     private void loadProductRatings() {
@@ -110,6 +138,8 @@ public class DiscoverFragment extends Fragment {
         for (Product p : allProducts) {
             db.collection("products").document(p.getId()).collection("reviews").get()
                     .addOnSuccessListener(snap -> {
+                        if (!isAdded() || getContext() == null) return;
+                        
                         float total = 0;
                         for (QueryDocumentSnapshot d : snap) {
                             Double r = d.getDouble("rating");
@@ -122,6 +152,8 @@ public class DiscoverFragment extends Fragment {
                             filterProducts();
                         }
                     }).addOnFailureListener(e -> {
+                        if (!isAdded() || getContext() == null) return;
+                        
                         processed[0]++;
                         if (processed[0] == allProducts.size()) showLoading(false);
                     });
@@ -129,6 +161,8 @@ public class DiscoverFragment extends Fragment {
     }
 
     private void filterProducts() {
+        if (!isAdded() || getContext() == null) return;
+        
         String query = searchEditText.getText().toString().toLowerCase().trim();
         List<Product> filtered = new ArrayList<>(allProducts);
 
@@ -143,7 +177,7 @@ public class DiscoverFragment extends Fragment {
         }
 
         if (adapter == null) {
-            adapter = new DiscoverProductAdapter(requireContext(), filtered, new DiscoverProductAdapter.OnItemClickListener() {
+            adapter = new DiscoverProductAdapter(getContext(), filtered, new DiscoverProductAdapter.OnItemClickListener() {
                 @Override public void onItemClick(Product product) {}
                 @Override public void onAddClick(Product product) {}
                 @Override public void onWishlistClick(Product product) { toggleWishlist(product); }
@@ -156,11 +190,15 @@ public class DiscoverFragment extends Fragment {
     }
 
     private void loadUserWishlist() {
+        if (!isAdded() || getContext() == null) return;
+        
         String userId = FirebaseAuth.getInstance().getUid();
         if (userId == null) return;
 
         db.collection("users").document(userId).collection("wishlist").get()
                 .addOnSuccessListener(snapshots -> {
+                    if (!isAdded() || getContext() == null) return;
+                    
                     List<String> ids = new ArrayList<>();
                     for (QueryDocumentSnapshot doc : snapshots) {
                         ids.add(doc.getId());
@@ -170,6 +208,8 @@ public class DiscoverFragment extends Fragment {
     }
 
     private void toggleWishlist(Product product) {
+        if (!isAdded() || getContext() == null) return;
+        
         String userId = FirebaseAuth.getInstance().getUid();
         if (userId == null) {
             Toast.makeText(getContext(), "Please login first", Toast.LENGTH_SHORT).show();
@@ -182,13 +222,21 @@ public class DiscoverFragment extends Fragment {
                 .document(product.getId());
 
         wishRef.get().addOnSuccessListener(doc -> {
+            if (!isAdded() || getContext() == null) return;
+            
             if (doc.exists()) {
-                wishRef.delete().addOnSuccessListener(aVoid -> Toast.makeText(getContext(), "Removed from Wishlist", Toast.LENGTH_SHORT).show());
+                wishRef.delete().addOnSuccessListener(aVoid -> {
+                    if (!isAdded() || getContext() == null) return;
+                    Toast.makeText(getContext(), "Removed from Wishlist", Toast.LENGTH_SHORT).show();
+                });
             } else {
                 Map<String, Object> wishItem = new HashMap<>();
                 wishItem.put("productId", product.getId());
                 wishItem.put("timestamp", System.currentTimeMillis());
-                wishRef.set(wishItem).addOnSuccessListener(aVoid -> Toast.makeText(getContext(), "Added to Wishlist", Toast.LENGTH_SHORT).show());
+                wishRef.set(wishItem).addOnSuccessListener(aVoid -> {
+                    if (!isAdded() || getContext() == null) return;
+                    Toast.makeText(getContext(), "Added to Wishlist", Toast.LENGTH_SHORT).show();
+                });
             }
         });
     }

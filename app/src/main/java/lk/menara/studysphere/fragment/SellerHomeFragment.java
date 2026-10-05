@@ -1,5 +1,6 @@
 package lk.menara.studysphere.fragment;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import lk.menara.studysphere.activity.ReportsActivity;
 import lk.menara.studysphere.adapter.OrderAdapter;
 import lk.menara.studysphere.databinding.FragmentSellerHomeBinding;
 import lk.menara.studysphere.model.Order;
@@ -46,11 +48,21 @@ public class SellerHomeFragment extends Fragment {
         firestore = FirebaseFirestore.getInstance();
 
         setupRecyclerView();
+        setupReportsButton();
 
         showLoading(true);
         loadDashboardData();
 
         return binding.getRoot();
+    }
+
+    private void setupReportsButton() {
+        if (binding != null && binding.btnViewReports != null) {
+            binding.btnViewReports.setOnClickListener(v -> {
+                Intent intent = new Intent(requireContext(), ReportsActivity.class);
+                startActivity(intent);
+            });
+        }
     }
 
     private void showLoading(boolean isVisible) {
@@ -87,7 +99,7 @@ public class SellerHomeFragment extends Fragment {
                 });
 
         firestore.collection("orders")
-                .whereIn("status", Arrays.asList("PAID", "Pending"))
+                .whereIn("status", Arrays.asList("PENDING", "Pending"))
                 .addSnapshotListener((value, error) -> {
                     if (isAdded() && binding != null && value != null) {
                         binding.tvPendingCount.setText(String.valueOf(value.size()));
@@ -95,7 +107,7 @@ public class SellerHomeFragment extends Fragment {
                 });
 
         firestore.collection("orders")
-                .whereEqualTo("status", "Delivered")
+                .whereIn("status", Arrays.asList("PAID", "DELIVERED", "Delivered", "COMPLETED"))
                 .addSnapshotListener((value, error) -> {
                     if (isAdded() && binding != null && value != null) {
                         binding.tvTotalSales.setText(String.valueOf(value.size()));

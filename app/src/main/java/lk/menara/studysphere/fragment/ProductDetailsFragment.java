@@ -159,15 +159,18 @@ public class ProductDetailsFragment extends Fragment {
             }
         });
 
-        btnCallSeller.setOnClickListener(v -> {
+        btnCallSeller.setOnLongClickListener(v -> {
             if (!TextUtils.isEmpty(contactPhoneNumber)) {
-                Intent intent = new Intent(Intent.ACTION_DIAL);
-                intent.setData(Uri.parse("tel:" + contactPhoneNumber));
-                startActivity(intent);
+                Intent smsIntent = new Intent(Intent.ACTION_SENDTO);
+                smsIntent.setData(Uri.parse("smsto:" + contactPhoneNumber));
+                smsIntent.putExtra("sms_body", "Hello, I am interested in your product.");
+                startActivity(smsIntent);
+                return true;
             }
+            return false;
         });
 
-        btnAddReview.setOnClickListener(v -> showReviewDialog());
+        btnAddReview.setOnClickListener(v -> checkPurchaseAndShowReviewDialog());
         btnAddToCart.setOnClickListener(v -> addToCartAction());
         btnBuyNow.setOnClickListener(v -> addToCartAction());
     }
@@ -270,6 +273,53 @@ public class ProductDetailsFragment extends Fragment {
                         }
                     }
                     showLoading(false);
+                });
+    }
+
+    private void checkPurchaseAndShowReviewDialog() {
+        if (firebaseAuth.getCurrentUser() == null) {
+            Toast.makeText(getContext(), "Please login first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (product == null) return;
+
+        showLoading(true);
+        String userId = firebaseAuth.getUid();
+        String productId = product.getId();
+
+        db.collection("orders")
+                .whereEqualTo("userId", userId)
+                .get()
+                .addOnSuccessListener(querySnapshots -> {
+                    showLoading(false);
+                    boolean hasPurchased = false;
+
+                    for (DocumentSnapshot doc : querySnapshots) {
+                        String status = doc.getString("status");
+                        if (status != null && (status.equalsIgnoreCase("DELIVERED") || status.equalsIgnoreCase("COMPLETED") || status.equalsIgnoreCase("PAID"))) {
+                            List<Map<String, Object>> items = (List<Map<String, Object>>) doc.get("items");
+                            if (items != null) {
+                                for (Map<String, Object> item : items) {
+                                    if (productId.equals(item.get("productId"))) {
+                                        hasPurchased = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (hasPurchased) break;
+                    }
+
+                    if (hasPurchased) {
+                        showReviewDialog();
+                    } else {
+                        Toast.makeText(getContext(), "You can only review products you have purchased and received.", Toast.LENGTH_LONG).show();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    showLoading(false);
+                    Toast.makeText(getContext(), "Error checking order history", Toast.LENGTH_SHORT).show();
                 });
     }
 

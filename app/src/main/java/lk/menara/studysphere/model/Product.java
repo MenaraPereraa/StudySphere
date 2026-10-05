@@ -1,10 +1,12 @@
 package lk.menara.studysphere.model;
 
+import com.google.firebase.firestore.IgnoreExtraProperties;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+@IgnoreExtraProperties
 public class Product implements Serializable {
 
     private static final long serialVersionUID = 1L;
