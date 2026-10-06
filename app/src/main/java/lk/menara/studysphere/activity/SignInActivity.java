@@ -1,6 +1,8 @@
 package lk.menara.studysphere.activity;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Patterns;
@@ -52,7 +54,6 @@ public class SignInActivity extends AppCompatActivity {
             return;
         }
 
-
         binding.signinBtnSignin.setOnClickListener(v -> performEmailSignIn());
 
         binding.googleSignInBtn.setOnClickListener(v -> signInWithGoogle());
@@ -80,11 +81,27 @@ public class SignInActivity extends AppCompatActivity {
         firebaseAuth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
+                        // 8. SharedPreferences Write Operation
+                        saveUserDataToPreferences();
                         goToMain();
                     } else {
                         Toast.makeText(this, "Login Failed: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
+    }
+
+    private void saveUserDataToPreferences() {
+        if (firebaseAuth.getCurrentUser() != null) {
+            String userId = firebaseAuth.getCurrentUser().getUid();
+            String userEmail = firebaseAuth.getCurrentUser().getEmail();
+
+            SharedPreferences prefs = getSharedPreferences("UserPrefs", Context.MODE_PRIVATE);
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putString("user_id", userId);
+            editor.putString("user_email", userEmail);
+            editor.putBoolean("is_logged_in", true);
+            editor.apply(); // Write operation applied
+        }
     }
 
     private void signInWithGoogle() {
@@ -159,6 +176,8 @@ public class SignInActivity extends AppCompatActivity {
         firebaseFirestore.collection("users").document(uid).get()
                 .addOnSuccessListener(documentSnapshot -> {
                     if (documentSnapshot.exists()) {
+                        // 8. SharedPreferences Write Operation
+                        saveUserDataToPreferences();
                         goToMain();
                     } else {
                         startActivity(new Intent(this, SignUpActivity.class));

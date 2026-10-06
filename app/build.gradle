@@ -87,4 +87,5 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.credentials.play.services.auth)
     implementation(libs.google.googleid)
+    implementation("com.google.code.gson:gson:2.10.1")
 }

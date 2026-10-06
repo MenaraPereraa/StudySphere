@@ -38,7 +38,8 @@
 
         <activity
             android:name=".activity.SplashActivity"
-            android:exported="true">
+            android:exported="true"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -50,14 +51,45 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
-        <activity android:name=".activity.MainActivity" android:exported="false" />
-        <activity android:name=".activity.SignInActivity" android:exported="false" />
-        <activity android:name=".activity.SignUpActivity" android:exported="false" />
-        <activity android:name=".activity.SellerMainActivity" android:exported="false" />
-        <activity android:name=".activity.SellerVerificationActivity" android:exported="false" />
-        <activity android:name=".activity.NotificationActivity" android:exported="false" />
-        <activity android:name=".activity.MapPickerActivity" android:exported="false" />
-        <activity android:name=".activity.ReportsActivity" android:exported="false" />
+        <activity
+            android:name=".activity.MainActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".activity.SignInActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".activity.SignUpActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".activity.SellerMainActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".activity.SellerVerificationActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".activity.NotificationActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".activity.MapPickerActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".activity.ReportsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

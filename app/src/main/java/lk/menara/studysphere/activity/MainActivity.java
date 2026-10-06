@@ -1,8 +1,13 @@
 package lk.menara.studysphere.activity;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -14,6 +19,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
@@ -49,9 +55,13 @@ import lk.menara.studysphere.util.SwipeGestureDetector;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener,
-        BottomNavigationView.OnItemSelectedListener {
+        BottomNavigationView.OnItemSelectedListener,
+        SensorEventListener {
 
     private static final String TAG = "MainActivity";
+    private static final float SHAKE_THRESHOLD_G = 2.7f;
+    private static final long SHAKE_COOLDOWN_MS = 1500;
+
     private ActivityMainBinding binding;
     private FirebaseAuth firebaseAuth;
     private FirebaseFirestore firebaseFirestore;
@@ -63,6 +73,9 @@ public class MainActivity extends AppCompatActivity
     private final Handler handler = new Handler(Looper.getMainLooper());
     private ListenerRegistration cartListener;
     private int lastCartCount = 0;
+    private SensorManager sensorManager;
+    private Sensor accelerometer;
+    private long lastShakeTime = 0;
 
     private final ActivityResultLauncher<String> notificationPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
@@ -87,6 +100,11 @@ public class MainActivity extends AppCompatActivity
 
         firebaseAuth = FirebaseAuth.getInstance();
         firebaseFirestore = FirebaseFirestore.getInstance();
+
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        if (sensorManager != null) {
+            accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        }
 
         setupToolbarClicks();
 
@@ -140,6 +158,22 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        if (sensorManager != null && accelerometer != null) {
+            sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (sensorManager != null) {
+            sensorManager.unregisterListener(this);
+        }
+    }
+
+    @Override
     protected void onStop() {
         super.onStop();
         removeCartListener();
@@ -150,6 +184,45 @@ public class MainActivity extends AppCompatActivity
         super.onDestroy();
         removeCartListener();
         handler.removeCallbacksAndMessages(null);
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() != Sensor.TYPE_ACCELEROMETER) return;
+
+        float gX = event.values[0] / SensorManager.GRAVITY_EARTH;
+        float gY = event.values[1] / SensorManager.GRAVITY_EARTH;
+        float gZ = event.values[2] / SensorManager.GRAVITY_EARTH;
+        double gForce = Math.sqrt(gX * gX + gY * gY + gZ * gZ);
+
+        if (gForce > SHAKE_THRESHOLD_G) {
+            long now = System.currentTimeMillis();
+            if (now - lastShakeTime < SHAKE_COOLDOWN_MS) return;
+            lastShakeTime = now;
+            onShakeDetected();
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+    }
+
+    private void onShakeDetected() {
+        if (isDestroyed() || isFinishing()) return;
+        Toast.makeText(this, "Refreshing...", Toast.LENGTH_SHORT).show();
+        loadUserProfile();
+        listenToCartCount();
+        refreshCurrentFragment();
+    }
+
+    private void refreshCurrentFragment() {
+        Fragment current = getSupportFragmentManager().findFragmentById(R.id.content_frame);
+        if (current != null && !getSupportFragmentManager().isStateSaved()) {
+            getSupportFragmentManager().beginTransaction()
+                    .detach(current)
+                    .attach(current)
+                    .commit();
+        }
     }
 
     @Override

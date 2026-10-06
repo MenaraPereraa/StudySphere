@@ -36,9 +36,8 @@ import com.google.firebase.firestore.FieldPath;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.WriteBatch;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.google.gson.Gson;
+import com.google.gson.annotations.SerializedName;
 
 import java.io.File;
 import java.io.IOException;
@@ -84,10 +83,10 @@ public class CheckoutFragment extends Fragment {
     private boolean isProcessing = false;
     private String currentOrderId;
 
-    // IDs of the cart items selected in CartFragment (null = no filter, use whole cart)
     private List<String> selectedIds;
 
     private final OkHttpClient httpClient = new OkHttpClient();
+    private final Gson gson = new Gson();
 
     private Executor executor;
     private BiometricPrompt biometricPrompt;
@@ -99,6 +98,25 @@ public class CheckoutFragment extends Fragment {
     private final String MERCHANT_SECRET = "NjYyODE3MTU5MzY4OTEwMzI2OTcwNDUwNzU1NzI0NzMyMA==";
     private final String CLIENT_ID = "4OVybuzw1Wi4JDDSNV6WHs3D0";
     private final String CLIENT_SECRET = "4vXAc28DX5X8cNdZr7eOvs4kpG67wPxNw4TzFN3Jsd9t";
+
+    public static class TokenResponse {
+        @SerializedName("access_token")
+        String accessToken;
+    }
+
+    public static class PaymentSearchResponse {
+        int status;
+        String msg;
+        List<PaymentData> data;
+    }
+
+    public static class PaymentData {
+        @SerializedName("order_id")
+        String orderId;
+        String status;
+        @SerializedName("status_code")
+        int statusCode = -1;
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -277,14 +295,21 @@ public class CheckoutFragment extends Fragment {
             public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
                 if (response.isSuccessful() && response.body() != null) {
                     try {
-                        JSONObject obj = new JSONObject(response.body().string());
-                        searchPayment(obj.getString("access_token"), statusResponse);
+                        TokenResponse token = gson.fromJson(response.body().string(), TokenResponse.class);
+                        if (token != null && token.accessToken != null) {
+                            searchPayment(token.accessToken, statusResponse);
+                        } else {
+                            showLoading(false);
+                            handleUiError("Token error");
+                        }
                     } catch (Exception e) {
                         showLoading(false);
                         handleUiError("Token error");
                     }
                 } else {
+                    response.close();
                     showLoading(false);
+                    handleUiError("Token request failed");
                 }
             }
         });
@@ -309,21 +334,18 @@ public class CheckoutFragment extends Fragment {
                 public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
                     if (response.isSuccessful() && response.body() != null) {
                         try {
-                            String jsonData = response.body().string();
-                            JSONObject jsonObject = new JSONObject(jsonData);
-                            if (jsonObject.getInt("status") == 1) {
-                                JSONArray dataArray = jsonObject.optJSONArray("data");
-                                if (dataArray != null && dataArray.length() > 0) {
-                                    JSONObject transaction = dataArray.getJSONObject(0);
-                                    String statusValue = transaction.optString("status", "");
-                                    int statusCode = transaction.optInt("status_code", -1);
+                            PaymentSearchResponse result = gson.fromJson(response.body().string(), PaymentSearchResponse.class);
 
-                                    if (statusValue.equalsIgnoreCase("RECEIVED") || statusCode == 2 || statusCode == 3) {
-                                        if (getActivity() != null) {
-                                            getActivity().runOnUiThread(() -> saveOrderToFirestore(statusResponse));
-                                        }
-                                        return;
+                            if (result != null && result.status == 1 && result.data != null && !result.data.isEmpty()) {
+                                PaymentData transaction = result.data.get(0);
+                                String statusValue = transaction.status == null ? "" : transaction.status;
+                                int statusCode = transaction.statusCode;
+
+                                if (statusValue.equalsIgnoreCase("RECEIVED") || statusCode == 2 || statusCode == 3) {
+                                    if (getActivity() != null) {
+                                        getActivity().runOnUiThread(() -> saveOrderToFirestore(statusResponse));
                                     }
+                                    return;
                                 }
                             }
                             showLoading(false);
@@ -333,7 +355,9 @@ public class CheckoutFragment extends Fragment {
                             handleUiError("Verification Parsing Error");
                         }
                     } else {
+                        response.close();
                         showLoading(false);
+                        handleUiError("Payment verification failed");
                     }
                 }
             });
@@ -344,7 +368,6 @@ public class CheckoutFragment extends Fragment {
         String uid = firebaseAuth.getUid();
         if (uid == null) { showLoading(false); return; }
 
-        // getCartItems() already returns only the selected items
         getCartItems(cartItems -> {
             List<String> productIds = new ArrayList<>();
             for (CartItem item : cartItems) productIds.add(item.getProductId());
@@ -478,7 +501,6 @@ public class CheckoutFragment extends Fragment {
         }
     }
 
-    // Deletes only the purchased (selected) items from the cart
     private void clearCartAndFinish(String uid) {
         db.collection("users").document(uid).collection("cart").get()
                 .addOnSuccessListener(qds -> {
@@ -527,7 +549,6 @@ public class CheckoutFragment extends Fragment {
         });
     }
 
-    // Loads cart items from Firestore, keeping only the ones selected in CartFragment
     private void getCartItems(FirestoreCallback<List<CartItem>> callback) {
         String uid = firebaseAuth.getUid();
         if (uid == null) return;

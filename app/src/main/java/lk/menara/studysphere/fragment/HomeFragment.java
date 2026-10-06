@@ -1,6 +1,7 @@
 package lk.menara.studysphere.fragment;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
@@ -99,9 +100,8 @@ public class HomeFragment extends Fragment {
     }
 
     private void loadFeaturedProducts() {
-        // NEW: Try loading from cache first if available
-        CacheDatabaseHelper cacheDb = CacheDatabaseHelper.getInstance(requireContext());
-        
+        final CacheDatabaseHelper cacheDb = CacheDatabaseHelper.getInstance(requireContext());
+
         FirebaseFirestore.getInstance().collection("products").get()
                 .addOnSuccessListener(query -> {
                     if (!isAdded() || binding == null) return;
@@ -116,8 +116,14 @@ public class HomeFragment extends Fragment {
                     allProducts.clear();
                     allProducts.addAll(products);
 
-                    // NEW: Cache the products
-                    cacheDb.put(CacheDatabaseHelper.KEY_HOME_PRODUCTS, products);
+                    final List<Product> productsToCache = new ArrayList<>(products);
+                    new Thread(() -> {
+                        try {
+                            cacheDb.put(CacheDatabaseHelper.KEY_HOME_PRODUCTS, productsToCache);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }).start();
 
                     if (products.isEmpty()) {
                         showHomeUI(true);
@@ -125,26 +131,38 @@ public class HomeFragment extends Fragment {
                         loadProductRatings(products);
                     }
                 })
-                .addOnFailureListener(e -> {
-                    // NEW: Load from cache on failure
-                    String cachedJson = cacheDb.get(CacheDatabaseHelper.KEY_HOME_PRODUCTS);
-                    if (cachedJson != null) {
-                        try {
-                            java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<List<Product>>() {}.getType();
-                            List<Product> cachedProducts = new com.google.gson.Gson().fromJson(cachedJson, listType);
-                            if (cachedProducts != null && !cachedProducts.isEmpty()) {
-                                allProducts.clear();
-                                allProducts.addAll(cachedProducts);
-                                loadProductRatings(cachedProducts);
-                                Toast.makeText(getContext(), "Showing offline data", Toast.LENGTH_SHORT).show();
-                                return;
-                            }
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
-                        }
-                    }
+                .addOnFailureListener(e -> loadProductsFromCache(cacheDb));
+    }
+
+    private void loadProductsFromCache(CacheDatabaseHelper cacheDb) {
+        new Thread(() -> {
+            List<Product> cachedProducts = null;
+            try {
+                String cachedJson = cacheDb.get(CacheDatabaseHelper.KEY_HOME_PRODUCTS);
+                if (cachedJson != null) {
+                    java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<List<Product>>() {}.getType();
+                    cachedProducts = new com.google.gson.Gson().fromJson(cachedJson, listType);
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+
+            final List<Product> result = cachedProducts;
+            Activity activity = getActivity();
+            if (activity == null) return;
+
+            activity.runOnUiThread(() -> {
+                if (!isAdded() || binding == null) return;
+                if (result != null && !result.isEmpty()) {
+                    allProducts.clear();
+                    allProducts.addAll(result);
+                    loadProductRatings(result);
+                    Toast.makeText(getContext(), "Showing offline data", Toast.LENGTH_SHORT).show();
+                } else {
                     showHomeUI(true);
-                });
+                }
+            });
+        }).start();
     }
 
     private void loadProductRatings(List<Product> products) {
@@ -189,22 +207,34 @@ public class HomeFragment extends Fragment {
 
     private void loadNearestProducts() {
         if (currentLocation == null || allProducts.isEmpty()) return;
-        List<ProductWithDistance> distList = new ArrayList<>();
-        for (Product p : allProducts) {
-            if (p.getLatitude() != 0 && p.getLongitude() != 0) {
-                Location loc = new Location("");
-                loc.setLatitude(p.getLatitude());
-                loc.setLongitude(p.getLongitude());
-                float dist = currentLocation.distanceTo(loc) / 1000f;
-                distList.add(new ProductWithDistance(p, dist));
+
+        final Location userLocation = currentLocation;
+        final List<Product> productsSnapshot = new ArrayList<>(allProducts);
+
+        new Thread(() -> {
+            List<ProductWithDistance> distList = new ArrayList<>();
+            for (Product p : productsSnapshot) {
+                if (p.getLatitude() != 0 && p.getLongitude() != 0) {
+                    Location loc = new Location("");
+                    loc.setLatitude(p.getLatitude());
+                    loc.setLongitude(p.getLongitude());
+                    float dist = userLocation.distanceTo(loc) / 1000f;
+                    distList.add(new ProductWithDistance(p, dist));
+                }
             }
-        }
-        Collections.sort(distList, (a, b) -> Float.compare(a.distanceKm, b.distanceKm));
-        List<Product> nearestOnly = new ArrayList<>();
-        for (int i = 0; i < Math.min(10, distList.size()); i++) {
-            nearestOnly.add(distList.get(i).product);
-        }
-        if (isAdded() && binding != null) nearestAdapter.updateData(nearestOnly);
+            Collections.sort(distList, (a, b) -> Float.compare(a.distanceKm, b.distanceKm));
+
+            final List<Product> nearestOnly = new ArrayList<>();
+            for (int i = 0; i < Math.min(10, distList.size()); i++) {
+                nearestOnly.add(distList.get(i).product);
+            }
+
+            Activity activity = getActivity();
+            if (activity == null) return;
+            activity.runOnUiThread(() -> {
+                if (isAdded() && binding != null) nearestAdapter.updateData(nearestOnly);
+            });
+        }).start();
     }
 
     private void getCurrentLocation() {
@@ -236,7 +266,7 @@ public class HomeFragment extends Fragment {
                 } else {
                     List<Product> filtered = new ArrayList<>();
                     for (Product p : allProducts) {
-                        if (p.getName().toLowerCase().contains(query)) filtered.add(p);
+                        if (p.getName() != null && p.getName().toLowerCase().contains(query)) filtered.add(p);
                     }
                     topRatedAdapter.updateData(filtered);
                 }
@@ -327,6 +357,7 @@ public class HomeFragment extends Fragment {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == LOCATION_PERMISSION_REQUEST_CODE && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             getCurrentLocation();
         }
