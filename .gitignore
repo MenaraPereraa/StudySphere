@@ -1,15 +1,22 @@
+# Android / Gradle Build Files
 *.iml
 .gradle
+local.properties
 /local.properties
+/build
+/captures
+.externalNativeBuild
+.cxx
+
+# IDE Configurations (Android Studio & IntelliJ)
+.idea/
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+
+# System & OS Files
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
+Thumbs.db

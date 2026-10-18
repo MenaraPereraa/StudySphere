@@ -1,10 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
+    <!-- Camera aur Pictures ke liye -->
+    <external-files-path
+        name="my_images"
+        path="Pictures" />
+
+    <!-- External files root directory -->
+    <external-files-path
+        name="external_files"
+        path="." />
+
+    <!-- Internal Receipts folder -->
     <files-path
         name="internal_files"
         path="Receipts/" />
 
-    <external-files-path
-        name="external_files"
-        path="." />
+    <!-- Camera cache folder -->
+    <cache-path
+        name="camera_cache"
+        path="camera/" />
 </paths>

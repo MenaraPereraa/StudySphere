@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
@@ -41,6 +42,27 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             NotificationManager manager = context.getSystemService(NotificationManager.class);
             if (manager != null) manager.createNotificationChannel(channel);
         }
+    }
+
+    // FIX: call this when the app opens (user record exists by then).
+    // It reads the current token and saves it on the user's record.
+    public static void saveCurrentTokenToUser() {
+        if (FirebaseAuth.getInstance().getCurrentUser() == null) return;
+        FirebaseMessaging.getInstance().getToken()
+                .addOnSuccessListener(MyFirebaseMessagingService::saveToken)
+                .addOnFailureListener(e -> Log.e(TAG, "Could not read FCM token", e));
+    }
+
+    private static void saveToken(String token) {
+        if (token == null || FirebaseAuth.getInstance().getCurrentUser() == null) return;
+        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        // update() on purpose: it never creates a half-empty user record
+        FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(uid)
+                .update("fcmToken", token)
+                .addOnFailureListener(e ->
+                        Log.w(TAG, "User record not ready; token will be saved on next app start", e));
     }
 
     @Override
@@ -74,7 +96,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     public void onNewToken(@NonNull String token) {
         super.onNewToken(token);
         Log.d(TAG, "Refreshed token: " + token);
-        sendTokenToServer(token);
+        saveToken(token);
     }
 
     private void showNotification(String title, String message, String notificationType) {
@@ -108,15 +130,5 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
         NotificationManagerCompat.from(this).notify(notificationId, builder.build());
         Log.d(TAG, "Notification displayed: " + title);
-    }
-
-    private void sendTokenToServer(String token) {
-        if (FirebaseAuth.getInstance().getCurrentUser() == null) return;
-        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        FirebaseFirestore.getInstance()
-                .collection("users")
-                .document(uid)
-                .update("fcmToken", token)
-                .addOnFailureListener(e -> Log.e(TAG, "Failed to save FCM token", e));
     }
 }

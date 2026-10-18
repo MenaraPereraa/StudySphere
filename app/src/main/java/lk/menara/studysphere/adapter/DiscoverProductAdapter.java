@@ -80,13 +80,23 @@ public class DiscoverProductAdapter extends RecyclerView.Adapter<DiscoverProduct
             holder.wishlistButton.setColorFilter(context.getColor(R.color.md_theme_onSurfaceVariant));
         }
 
-        holder.itemView.setOnClickListener(v -> {
-            if (listener != null) listener.onItemClick(product);
-        });
+        // Stock handling: out of stock rows are dimmed, not clickable, and cannot be added
+        boolean inStock = product.getAvailableQty() > 0;
+        holder.itemView.setAlpha(inStock ? 1f : 0.5f);
+        holder.itemView.setClickable(inStock);
+        holder.addButton.setEnabled(inStock);
 
-        holder.addButton.setOnClickListener(v -> {
-            if (listener != null) listener.onAddClick(product);
-        });
+        if (inStock) {
+            holder.itemView.setOnClickListener(v -> {
+                if (listener != null) listener.onItemClick(product);
+            });
+            holder.addButton.setOnClickListener(v -> {
+                if (listener != null) listener.onAddClick(product);
+            });
+        } else {
+            holder.itemView.setOnClickListener(null);
+            holder.addButton.setOnClickListener(null);
+        }
 
         holder.wishlistButton.setOnClickListener(v -> {
             if (listener != null) listener.onWishlistClick(product);

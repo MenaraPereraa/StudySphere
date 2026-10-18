@@ -52,16 +52,24 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ViewHold
         holder.ratingBar.setRating(product.getRating());
         holder.ratingText.setText(String.valueOf(product.getRating()));
 
-        // Set price
-        holder.productPrice.setText("LKR ".concat(String.valueOf(product.getPrice())));
-
         // Load image using Glide
         loadProductImage(holder.productImage, product.getImage());
 
-        // Click listener
-        holder.itemView.setOnClickListener(v -> {
-            if (listener != null) listener.onProductClick(product);
-        });
+        // Price / stock status + click handling
+        if (product.getAvailableQty() <= 0) {
+            // Out of stock: dim the row and disable the click
+            holder.productPrice.setText("Out of stock");
+            holder.itemView.setAlpha(0.5f);
+            holder.itemView.setOnClickListener(null);
+            holder.itemView.setClickable(false);
+        } else {
+            holder.productPrice.setText("LKR ".concat(String.valueOf(product.getPrice())));
+            holder.itemView.setAlpha(1f);
+            holder.itemView.setClickable(true);
+            holder.itemView.setOnClickListener(v -> {
+                if (listener != null) listener.onProductClick(product);
+            });
+        }
     }
 
     @Override

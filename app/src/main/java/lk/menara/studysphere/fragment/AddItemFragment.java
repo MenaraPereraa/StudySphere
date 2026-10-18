@@ -244,7 +244,9 @@ public class AddItemFragment extends Fragment {
         data.put("image", imageUrl);
         data.put("updatedAt", System.currentTimeMillis());
 
-        if (selectedLat != null) {
+        // Location is saved as a "location" map with "lat" and "lng".
+        // Product.setLocation(Map) reads these and fills latitude/longitude.
+        if (selectedLat != null && selectedLng != null) {
             Map<String, Object> location = new HashMap<>();
             location.put("lat", selectedLat);
             location.put("lng", selectedLng);

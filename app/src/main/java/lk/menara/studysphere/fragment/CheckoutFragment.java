@@ -58,6 +58,7 @@ import lk.menara.studysphere.model.Order;
 import lk.menara.studysphere.model.Payment;
 import lk.menara.studysphere.model.Product;
 import lk.menara.studysphere.model.User;
+import lk.menara.studysphere.util.OkHTTPClient;
 import lk.menara.studysphere.util.ReceiptGenerator;
 import lk.payhere.androidsdk.PHConstants;
 import lk.payhere.androidsdk.PHMainActivity;
@@ -85,7 +86,8 @@ public class CheckoutFragment extends Fragment {
 
     private List<String> selectedIds;
 
-    private final OkHttpClient httpClient = new OkHttpClient();
+    // FIX: use the shared OkHttp client
+    private final OkHttpClient httpClient = OkHTTPClient.getInstance();
     private final Gson gson = new Gson();
 
     private Executor executor;
@@ -406,7 +408,23 @@ public class CheckoutFragment extends Fragment {
                         .transactionId(String.valueOf(statusResponse.getPaymentNo()))
                         .build();
 
+                // Collect the seller of every product in this order,
+                // so each seller can find their own orders and sales
+                List<String> sellerIds = new ArrayList<>();
+                for (Product p : productMap.values()) {
+                    String s = p.getSellerId();
+                    if (s != null && !s.isEmpty() && !sellerIds.contains(s)) {
+                        sellerIds.add(s);
+                    }
+                }
+
                 db.collection("orders").document(currentOrderId).set(order)
+                        .continueWithTask(task -> {
+                            if (!task.isSuccessful()) throw task.getException();
+                            // Save sellerIds on the order
+                            return db.collection("orders").document(currentOrderId)
+                                    .update("sellerIds", sellerIds);
+                        })
                         .addOnSuccessListener(aVoid -> {
 
                             db.collection("payment").document(payment.getPaymentId()).set(payment)

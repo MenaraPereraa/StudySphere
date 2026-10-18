@@ -145,7 +145,6 @@ public class SignInActivity extends AppCompatActivity {
         }
     }
 
-    // --- LOGIC: Forgot Password BottomSheet ---
     private void showForgotPasswordSheet() {
         BottomSheetDialog dialog = new BottomSheetDialog(this);
         View view = getLayoutInflater().inflate(R.layout.layout_forgot_password_sheet, null);

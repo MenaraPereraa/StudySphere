@@ -1,6 +1,7 @@
 package lk.menara.studysphere.fragment;
 
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.graphics.BitmapFactory;
 import android.graphics.Typeface;
 import android.net.Uri;
@@ -20,6 +21,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatButton;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -34,6 +36,7 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -43,8 +46,12 @@ import java.util.Map;
 import lk.menara.studysphere.R;
 import lk.menara.studysphere.model.Product;
 import lk.menara.studysphere.model.Review;
+import lk.menara.studysphere.util.CacheDatabaseHelper;
+import lk.menara.studysphere.util.NetworkUtil;
 
 public class ProductDetailsFragment extends Fragment {
+
+    private static final int LOW_STOCK_LIMIT = 5;
 
     private AppCompatButton btnAddToCart, btnBuyNow;
     private ImageView productImage;
@@ -52,6 +59,7 @@ public class ProductDetailsFragment extends Fragment {
     private TextView quantityText, btnIncrease, btnDecrease, tvSellerName, tvAvailableQty;
     private TextView btnAddReview;
     private LinearLayout reviewsContainer;
+    private ColorStateList availableDefaultColors;
 
     private View btnCallSeller;
     private MapView mapView;
@@ -126,6 +134,11 @@ public class ProductDetailsFragment extends Fragment {
         tvSellerName = view.findViewById(R.id.tv_seller_name);
         tvAvailableQty = view.findViewById(R.id.tv_available_qty);
 
+        // Remember the normal text colour so it can be restored after a red label
+        if (tvAvailableQty != null) {
+            availableDefaultColors = tvAvailableQty.getTextColors();
+        }
+
         mapView = view.findViewById(R.id.map_view);
         mapView.onCreate(null);
         mapView.onResume();
@@ -159,6 +172,18 @@ public class ProductDetailsFragment extends Fragment {
             }
         });
 
+        // Tap -> open the dialer with the seller's number (no CALL_PHONE permission needed)
+        btnCallSeller.setOnClickListener(v -> {
+            if (!TextUtils.isEmpty(contactPhoneNumber)) {
+                Intent dialIntent = new Intent(Intent.ACTION_DIAL);
+                dialIntent.setData(Uri.parse("tel:" + contactPhoneNumber));
+                startActivity(dialIntent);
+            } else {
+                Toast.makeText(getContext(), "Seller number not available", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // Long press -> SMS to the seller
         btnCallSeller.setOnLongClickListener(v -> {
             if (!TextUtils.isEmpty(contactPhoneNumber)) {
                 Intent smsIntent = new Intent(Intent.ACTION_SENDTO);
@@ -171,16 +196,38 @@ public class ProductDetailsFragment extends Fragment {
         });
 
         btnAddReview.setOnClickListener(v -> checkPurchaseAndShowReviewDialog());
-        btnAddToCart.setOnClickListener(v -> addToCartAction());
-        btnBuyNow.setOnClickListener(v -> addToCartAction());
+
+        btnAddToCart.setOnClickListener(v -> addToCartAction(false));
+
+        btnBuyNow.setOnClickListener(v -> addToCartAction(true));
     }
 
     private void updateQtyUI() {
         quantityText.setText(String.valueOf(selectedQuantity));
 
+        // Out of stock: block Add to Cart and Buy Now
+        boolean inStock = initialStock > 0;
+        btnAddToCart.setEnabled(inStock);
+        btnBuyNow.setEnabled(inStock);
+        btnAddToCart.setAlpha(inStock ? 1f : 0.5f);
+        btnBuyNow.setAlpha(inStock ? 1f : 0.5f);
+
         int remainingStock = initialStock - selectedQuantity;
         if (tvAvailableQty != null) {
-            tvAvailableQty.setText("(Available: " + remainingStock + ")");
+            if (initialStock <= 0) {
+                tvAvailableQty.setText("Out of stock");
+                tvAvailableQty.setTextColor(ContextCompat.getColor(
+                        requireContext(), android.R.color.holo_red_dark));
+            } else if (initialStock < LOW_STOCK_LIMIT) {
+                tvAvailableQty.setText("Low stock (Available: " + remainingStock + ")");
+                tvAvailableQty.setTextColor(ContextCompat.getColor(
+                        requireContext(), android.R.color.holo_red_dark));
+            } else {
+                tvAvailableQty.setText("(Available: " + remainingStock + ")");
+                if (availableDefaultColors != null) {
+                    tvAvailableQty.setTextColor(availableDefaultColors);
+                }
+            }
         }
 
         productPrice.setText(String.format(Locale.US, "LKR %,.2f", product.getPrice() * selectedQuantity));
@@ -203,7 +250,11 @@ public class ProductDetailsFragment extends Fragment {
         }
     }
 
-    private void addToCartAction() {
+    /**
+     * @param buyNow true  -> go to checkout with only this product selected
+     *               false -> go to the cart screen
+     */
+    private void addToCartAction(boolean buyNow) {
         if (firebaseAuth.getCurrentUser() == null) {
             Toast.makeText(getContext(), "Please login first", Toast.LENGTH_SHORT).show();
             return;
@@ -234,7 +285,11 @@ public class ProductDetailsFragment extends Fragment {
         }).addOnSuccessListener(result -> {
             showLoading(false);
             Toast.makeText(getContext(), "Success!", Toast.LENGTH_SHORT).show();
-            goToCart();
+            if (buyNow) {
+                goToCheckout();
+            } else {
+                goToCart();
+            }
         }).addOnFailureListener(e -> {
             showLoading(false);
             Toast.makeText(getContext(), "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
@@ -248,6 +303,24 @@ public class ProductDetailsFragment extends Fragment {
                     .addToBackStack(null)
                     .commit();
         }
+    }
+
+    // Opens checkout with only this product (cart document id = product id)
+    private void goToCheckout() {
+        if (!isAdded()) return;
+
+        ArrayList<String> selectedIds = new ArrayList<>();
+        selectedIds.add(product.getId());
+
+        CheckoutFragment checkoutFragment = new CheckoutFragment();
+        Bundle args = new Bundle();
+        args.putStringArrayList("selected_ids", selectedIds);
+        checkoutFragment.setArguments(args);
+
+        getParentFragmentManager().beginTransaction()
+                .replace(R.id.content_frame, checkoutFragment)
+                .addToBackStack(null)
+                .commit();
     }
 
     private void fetchContactDetails() {
@@ -297,8 +370,18 @@ public class ProductDetailsFragment extends Fragment {
 
                     for (DocumentSnapshot doc : querySnapshots) {
                         String status = doc.getString("status");
-                        if (status != null && (status.equalsIgnoreCase("DELIVERED") || status.equalsIgnoreCase("COMPLETED") || status.equalsIgnoreCase("PAID"))) {
-                            List<Map<String, Object>> items = (List<Map<String, Object>>) doc.get("items");
+                        if (status != null && (status.equalsIgnoreCase("DELIVERED")
+                                || status.equalsIgnoreCase("COMPLETED")
+                                || status.equalsIgnoreCase("PAID"))) {
+
+                            // CheckoutFragment saves the list as "orderItems"
+                            // (falls back to the old "items" name just in case)
+                            List<Map<String, Object>> items =
+                                    (List<Map<String, Object>>) doc.get("orderItems");
+                            if (items == null) {
+                                items = (List<Map<String, Object>>) doc.get("items");
+                            }
+
                             if (items != null) {
                                 for (Map<String, Object> item : items) {
                                     if (productId.equals(item.get("productId"))) {
@@ -341,14 +424,43 @@ public class ProductDetailsFragment extends Fragment {
 
     private void saveReview(String comment, float rating, BottomSheetDialog dialog) {
         String uid = firebaseAuth.getUid();
-        db.collection("users").document(uid).get().addOnSuccessListener(userDoc -> {
-            String name = userDoc.getString("name");
-            String userImage = userDoc.getString("profileImage");
+        if (uid == null || product == null) return;
+
+        db.collection("users").document(uid).get().addOnCompleteListener(task -> {
+            if (!isAdded()) return;
+
+            String name = null;
+            String userImage = null;
+            if (task.isSuccessful() && task.getResult() != null) {
+                name = task.getResult().getString("name");
+                userImage = task.getResult().getString("profileImage");
+            }
+            String finalName = name != null ? name : "Anonymous";
             String date = new SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(new Date());
-            Review review = new Review(name != null ? name : "Anonymous", comment, rating, date, userImage);
+
+            // No internet -> save in the local sync queue, upload later
+            if (!NetworkUtil.isNetworkAvailable(requireContext())) {
+                Map<String, Object> queued = new HashMap<>();
+                queued.put("userName", finalName);
+                queued.put("comment", comment);
+                queued.put("rating", rating);
+                queued.put("date", date);
+
+                CacheDatabaseHelper.getInstance(requireContext())
+                        .queueForSync("products/" + product.getId() + "/reviews", queued);
+
+                Toast.makeText(getContext(),
+                        "You are offline. Your review will be posted when the internet is back.",
+                        Toast.LENGTH_LONG).show();
+                dialog.dismiss();
+                return;
+            }
+
+            Review review = new Review(finalName, comment, rating, date, userImage);
             db.collection("products").document(product.getId()).collection("reviews")
                     .add(review)
                     .addOnSuccessListener(r -> {
+                        if (!isAdded()) return;
                         Toast.makeText(getContext(), "Review Added!", Toast.LENGTH_SHORT).show();
                         dialog.dismiss();
                     });
@@ -387,7 +499,7 @@ public class ProductDetailsFragment extends Fragment {
         googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(loc, 15f));
     }
 
-    @Override public void onResume() { super.onResume(); if(mapView != null) mapView.onResume(); }
-    @Override public void onPause() { if(mapView != null) mapView.onPause(); super.onPause(); }
-    @Override public void onDestroy() { if(mapView != null) mapView.onDestroy(); super.onDestroy(); }
+    @Override public void onResume() { super.onResume(); if (mapView != null) mapView.onResume(); }
+    @Override public void onPause() { if (mapView != null) mapView.onPause(); super.onPause(); }
+    @Override public void onDestroy() { if (mapView != null) mapView.onDestroy(); super.onDestroy(); }
 }

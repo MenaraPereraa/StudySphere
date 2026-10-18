@@ -144,8 +144,12 @@ public class ReceiptGenerator {
 
     private static void buildMeta(Document doc, PdfFont bold, PdfFont regular,
                                   PdfFont mono, Order order, Payment payment) {
+        // FIX: show the real order date (fall back to now only if it is missing)
+        Date issued = (order.getOrderDate() != null)
+                ? order.getOrderDate().toDate()
+                : new Date();
         String date = new SimpleDateFormat("dd MMMM yyyy  •  HH:mm:ss",
-                Locale.getDefault()).format(new Date());
+                Locale.getDefault()).format(issued);
 
         Table t = fullWidthTable(new float[]{50, 50}).setMarginBottom(4);
 
@@ -154,7 +158,8 @@ public class ReceiptGenerator {
         t.addCell(val(order.getOrderId(),     mono));
         t.addCell(val(payment.getPaymentId(), mono));
         t.addCell(lbl("Transaction ID", bold));
-        t.addCell(lbl("Issued On",      bold));
+        // FIX: label changed from "Issued On" to "Order Date"
+        t.addCell(lbl("Order Date",     bold));
         t.addCell(val(payment.getTransactionId(), mono));
         t.addCell(val(date,                       regular));
 

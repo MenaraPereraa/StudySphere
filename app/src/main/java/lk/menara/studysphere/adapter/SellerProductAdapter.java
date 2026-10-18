@@ -17,6 +17,8 @@ import lk.menara.studysphere.model.Product;
 
 public class SellerProductAdapter extends RecyclerView.Adapter<SellerProductAdapter.ViewHolder> implements Filterable {
 
+    private static final int LOW_STOCK_LIMIT = 5;
+
     private List<Product> productList;
     private List<Product> productListFull;
     private OnItemClickListener listener;
@@ -44,7 +46,16 @@ public class SellerProductAdapter extends RecyclerView.Adapter<SellerProductAdap
 
         holder.name.setText(product.getName());
         holder.category.setText(product.getCategory());
-        holder.price.setText(product.getFormattedPrice());
+
+        // Price + stock status
+        int qty = product.getAvailableQty();
+        if (qty <= 0) {
+            holder.price.setText(product.getFormattedPrice() + " • Out of stock");
+        } else if (qty < LOW_STOCK_LIMIT) {
+            holder.price.setText(product.getFormattedPrice() + " • Low stock");
+        } else {
+            holder.price.setText(product.getFormattedPrice());
+        }
 
         // Glide handles the image URL from your Product model
         Glide.with(holder.itemView.getContext())
@@ -74,8 +85,8 @@ public class SellerProductAdapter extends RecyclerView.Adapter<SellerProductAdap
                     // Apply the filter to the full product list
                     for (Product product : productListFull) {
                         if (product.getName().toLowerCase().contains(filterPattern) ||
-                            product.getCategory().toLowerCase().contains(filterPattern) ||
-                            product.getDescription().toLowerCase().contains(filterPattern)) {
+                                product.getCategory().toLowerCase().contains(filterPattern) ||
+                                product.getDescription().toLowerCase().contains(filterPattern)) {
                             filteredList.add(product);
                         }
                     }

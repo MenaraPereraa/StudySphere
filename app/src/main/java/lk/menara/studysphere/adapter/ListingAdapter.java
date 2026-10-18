@@ -1,6 +1,7 @@
 package lk.menara.studysphere.adapter;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -9,6 +10,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
@@ -19,6 +21,8 @@ import lk.menara.studysphere.R;
 import lk.menara.studysphere.model.Product;
 
 public class ListingAdapter extends RecyclerView.Adapter<ListingAdapter.ViewHolder> {
+
+    private static final int LOW_STOCK_LIMIT = 5;
 
     private Context context;
     private List<Product> productList;
@@ -50,11 +54,44 @@ public class ListingAdapter extends RecyclerView.Adapter<ListingAdapter.ViewHold
             holder.name.setText("Unknown");
             holder.price.setText("N/A");
             holder.image.setImageResource(R.drawable.add_photo_alternate_24px);
+            holder.itemView.setEnabled(false);
+            holder.itemView.setClickable(false);
             return;
         }
 
         holder.name.setText(product.getName() != null ? product.getName() : "No name");
-        holder.price.setText(product.getFormattedPrice() != null ? product.getFormattedPrice() : "N/A");
+
+        String priceText = product.getFormattedPrice() != null ? product.getFormattedPrice() : "N/A";
+        int qty = product.getAvailableQty();
+        int red = ContextCompat.getColor(context, android.R.color.holo_red_dark);
+
+        // Reset first, because RecyclerView reuses rows
+        holder.price.setTextColor(holder.defaultPriceColors);
+        holder.itemView.setAlpha(1f);
+        holder.itemView.setEnabled(true);
+        holder.itemView.setClickable(true);
+
+        if (qty <= 0) {
+            // Out of stock: dim the row and disable the click
+            holder.price.setText("Out of stock");
+            holder.price.setTextColor(red);
+            holder.itemView.setAlpha(0.5f);
+            holder.itemView.setEnabled(false);
+            holder.itemView.setClickable(false);
+            holder.itemView.setOnClickListener(null);
+        } else {
+            if (qty < LOW_STOCK_LIMIT) {
+                holder.price.setText(priceText + " • Low stock");
+                holder.price.setTextColor(red);
+            } else {
+                holder.price.setText(priceText);
+            }
+            holder.itemView.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onItemClick(product);
+                }
+            });
+        }
 
         if (!TextUtils.isEmpty(product.getImage())) {
             Glide.with(context)
@@ -65,12 +102,6 @@ public class ListingAdapter extends RecyclerView.Adapter<ListingAdapter.ViewHold
         } else {
             holder.image.setImageResource(R.drawable.add_photo_alternate_24px);
         }
-
-        holder.itemView.setOnClickListener(v -> {
-            if (listener != null) {
-                listener.onItemClick(product);
-            }
-        });
     }
 
     @Override
@@ -82,6 +113,7 @@ public class ListingAdapter extends RecyclerView.Adapter<ListingAdapter.ViewHold
 
         ImageView image;
         TextView name, price;
+        ColorStateList defaultPriceColors;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -89,6 +121,7 @@ public class ListingAdapter extends RecyclerView.Adapter<ListingAdapter.ViewHold
             image = itemView.findViewById(R.id.listing_item_image);
             name = itemView.findViewById(R.id.listing_item_name);
             price = itemView.findViewById(R.id.listing_item_price);
+            defaultPriceColors = price.getTextColors();
         }
     }
 }

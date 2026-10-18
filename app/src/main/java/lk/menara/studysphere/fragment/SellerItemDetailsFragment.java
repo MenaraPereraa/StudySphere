@@ -1,6 +1,7 @@
 package lk.menara.studysphere.fragment;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
@@ -15,6 +16,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -47,11 +49,14 @@ import lk.menara.studysphere.model.Review;
 
 public class SellerItemDetailsFragment extends Fragment implements OnMapReadyCallback {
 
+    private static final int LOW_STOCK_LIMIT = 5;
+
     private FragmentSellerItemDetailsBinding binding;
     private Product product;
     private GoogleMap googleMap;
     private FirebaseFirestore firestore;
     private String productId;
+    private ColorStateList stockDefaultColors;
     private final ExecutorService imageExecutor = Executors.newSingleThreadExecutor();
     private static final String TAG = "SellerDetails";
 
@@ -64,6 +69,9 @@ public class SellerItemDetailsFragment extends Fragment implements OnMapReadyCal
 
         binding = FragmentSellerItemDetailsBinding.inflate(inflater, container, false);
         firestore = FirebaseFirestore.getInstance();
+
+        // Remember the normal text colour so it can be restored after a red label
+        stockDefaultColors = binding.stockQuantity.getTextColors();
 
         if (getArguments() != null) {
             productId = getArguments().getString("productId");
@@ -116,7 +124,24 @@ public class SellerItemDetailsFragment extends Fragment implements OnMapReadyCal
         binding.productCategory.setText(product.getCategory());
         binding.productRating.setText(String.format(Locale.US, "%.1f ⭐", product.getRating()));
         binding.productDescription.setText(product.getDescription());
-        binding.stockQuantity.setText(product.getAvailableQty() + " units available");
+
+        // Stock label: Out of stock (0), Low stock (below 5), or normal
+        int qty = product.getAvailableQty();
+        if (qty <= 0) {
+            binding.stockQuantity.setText("Out of stock");
+            binding.stockQuantity.setTextColor(ContextCompat.getColor(
+                    requireContext(), android.R.color.holo_red_dark));
+        } else if (qty < LOW_STOCK_LIMIT) {
+            binding.stockQuantity.setText("Low stock: " + qty + " units left");
+            binding.stockQuantity.setTextColor(ContextCompat.getColor(
+                    requireContext(), android.R.color.holo_red_dark));
+        } else {
+            binding.stockQuantity.setText(qty + " units available");
+            if (stockDefaultColors != null) {
+                binding.stockQuantity.setTextColor(stockDefaultColors);
+            }
+        }
+
         binding.productPrice.setText(String.format(Locale.US, "LKR %,.2f", product.getPrice()));
 
         loadProductImage(product.getImage());
@@ -239,6 +264,7 @@ public class SellerItemDetailsFragment extends Fragment implements OnMapReadyCal
 
         bottomSheetDialog.show();
     }
+
     private void showLoading(boolean isVisible) {
         if (isAdded() && binding != null && binding.loadingLayout != null) {
             binding.loadingLayout.getRoot().setVisibility(isVisible ? View.VISIBLE : View.GONE);
