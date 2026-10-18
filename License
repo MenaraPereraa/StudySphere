@@ -1,1 +1,304 @@
+# StudySphere — GitHub Repository Guide
+
+## What Else Is Needed in Each Repository
+
+Beyond `README.md`, a well-structured GitHub repository should include the following files. Some you already have (`.gitignore`, `build.gradle`); the rest should be added.
+
+---
+
+### 1. `LICENSE`
+> [!IMPORTANT]
+> GitHub will show a **"No license"** warning on your repo without this. It also protects you legally.
+
+For a student project with open-source intent, use **MIT**:
+
+```
+MIT License
+
+Copyright (c) 2026 MenaraPereraa
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+**How to add it:**
+```bash
+# Add it directly on GitHub via the UI:
+# Repository → Add file → Create new file → name it "LICENSE"
+# GitHub will offer a license template picker automatically.
+```
+
+---
+
+### 2. `.gitignore` (already present — verify contents)
+
+Your `.gitignore` should exclude all secrets and generated files. For an Android Java + Firebase project:
+
+```gitignore
+# Android generated files
+*.iml
+.gradle/
+local.properties
+.idea/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+
+# Firebase — NEVER commit this
+google-services.json
+
+# Keystore — NEVER commit signing keys
+*.jks
+*.keystore
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+```
+
+---
+
+### 3. `CONTRIBUTING.md`
+Explains how others (or teammates) can contribute. Keeps collaboration clean.
+
+```markdown
+# Contributing to StudySphere
+
+Thank you for your interest in contributing!
+
+## How to Contribute
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature-name`
+3. Commit your changes: `git commit -m "feat: add your feature description"`
+4. Push to your fork: `git push origin feature/your-feature-name`
+5. Open a Pull Request against the `main` branch
+
+## Commit Message Convention
+
+Use the following prefixes:
+- `feat:` — new feature
+- `fix:` — bug fix
+- `docs:` — documentation changes
+- `refactor:` — code restructuring without feature change
+- `test:` — adding or updating tests
+
+## Code Style
+
+- Follow standard Android Java naming conventions
+- Use 4-space indentation
+- Add Javadoc comments to all public methods
+```
+
+---
+
+### 4. `.github/` Folder (GitHub-specific automation)
+
+This folder unlocks GitHub's built-in features. Create this structure:
+
+```
+.github/
+├── ISSUE_TEMPLATE/
+│   ├── bug_report.md          # Pre-filled template when someone opens a bug
+│   └── feature_request.md     # Pre-filled template for feature requests
+├── PULL_REQUEST_TEMPLATE.md   # Checklist shown when a PR is opened
+└── workflows/
+    └── android-ci.yml         # GitHub Actions: auto-build on every push
+```
+
+**`android-ci.yml`** — Automatically builds your app on every push to `main`:
+
+```yaml
+name: Android CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Run Unit Tests
+        run: ./gradlew test
+```
+
+---
+
+### 5. `CHANGELOG.md` *(Optional but professional)*
+
+Tracks version history:
+
+```markdown
+# Changelog
+
+## [Unreleased]
+- Initial project setup
+- Firebase Authentication integration
+- Marketplace listing feature
+
+## [1.0.0] - 2026-10-18
+- First public release
+```
+
+---
+
+## How to Add These Files to Git
+
+```bash
+# Stage all new files
+git add LICENSE CONTRIBUTING.md CHANGELOG.md
+git add .gitignore
+git add .github/
+
+# Commit them together
+git commit -m "docs: add LICENSE, CONTRIBUTING, CHANGELOG, and GitHub Actions CI"
+
+# Push to GitHub
+git push origin main
+```
+
+---
+
+## Do You Need Separate README Files for Separate Repos?
+
+**Yes — absolutely.** Each repository is its own independent project on GitHub. GitHub only reads the `README.md` at the **root of that specific repo**. A README in one repo has no effect on another.
+
+Here is the recommended split for StudySphere:
+
+---
+
+## Recommended Repository Structure
+
+### Repository 1 — `StudySphere` *(Android App — already exists)*
+> The mobile client. Java + Android SDK + Firebase + PayHere SDK + Google Maps.
+
+```
+MenaraPereraa/StudySphere
+├── app/
+├── gradle/
+├── .gitignore              ✅ already present
+├── README.md               ✅ already created
+├── LICENSE                 ← add this
+├── CONTRIBUTING.md         ← add this
+├── CHANGELOG.md            ← add this (optional)
+├── .github/workflows/      ← add CI
+├── build.gradle
+├── settings.gradle
+├── gradle.properties
+├── gradlew
+└── gradlew.bat
+```
+
+---
+
+### Repository 2 — `StudySphere-Backend`
+> The REST API server. Recommended: **Node.js (Express)** or **Spring Boot (Java)**.
+> Handles business logic, PayHere payment webhooks, and any server-side operations.
+
+```
+MenaraPereraa/StudySphere-Backend
+├── src/
+│   ├── controllers/
+│   ├── routes/
+│   ├── models/
+│   ├── middleware/
+│   └── index.js
+├── .env.example            ← template for environment variables (safe to commit)
+├── .gitignore              ← exclude .env, node_modules/
+├── README.md               ← separate README for this repo
+├── LICENSE
+├── CONTRIBUTING.md
+├── package.json
+└── .github/workflows/
+```
+
+**Its README should cover:**
+- API base URL and endpoints
+- Environment variables (`.env.example`)
+- How to run locally (`npm start` / `mvn spring-boot:run`)
+- PayHere webhook setup
+- Deployment (Railway / Render / AWS)
+
+---
+
+### Repository 3 — `StudySphere-Web` *(if applicable)*
+> Admin panel or web version. Recommended: **Next.js / React**.
+> Could serve as a seller dashboard or admin management panel.
+
+```
+MenaraPereraa/StudySphere-Web
+├── src/
+│   ├── app/
+│   ├── components/
+│   └── lib/
+├── .env.example
+├── .gitignore
+├── README.md               ← separate README for this repo
+├── LICENSE
+├── CONTRIBUTING.md
+├── package.json
+├── next.config.js
+└── .github/workflows/
+```
+
+**Its README should cover:**
+- Setup with `npm install` and `npm run dev`
+- Environment variables (Firebase config, API base URL)
+- Deployment to Vercel
+
+---
+
+## Summary Checklist
+
+| File / Folder | Android Repo | Backend Repo | Web Repo |
+|---|:---:|:---:|:---:|
+| `README.md` | ✅ done | needed | needed |
+| `LICENSE` | add | add | add |
+| `.gitignore` | ✅ present | add | add |
+| `CONTRIBUTING.md` | add | add | add |
+| `.env.example` | — | add | add |
+| `.github/workflows/` CI | add | add | add |
+| `CHANGELOG.md` | optional | optional | optional |
+
+> [!TIP]
+> Create the README first in every new repo — GitHub shows a prompt to add it during repo creation. Say **yes** and then replace the content with your custom file.
 
